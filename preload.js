@@ -1,0 +1,22 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('api', {
+  getAll: () => ipcRenderer.invoke('updates:getAll'),
+  getByDate: (date) => ipcRenderer.invoke('updates:getByDate', date),
+  getDatesWithUpdates: () => ipcRenderer.invoke('updates:getDatesWithUpdates'),
+  create: (update) => ipcRenderer.invoke('updates:create', update),
+  edit: (id, fields) => ipcRenderer.invoke('updates:edit', id, fields),
+  delete: (id) => ipcRenderer.invoke('updates:delete', id),
+  exportJson: () => ipcRenderer.invoke('export:json'),
+  getAllRepos: () => ipcRenderer.invoke('repos:getAll'),
+  createRepo: (name) => ipcRenderer.invoke('repos:create', name),
+  getAllPeople: () => ipcRenderer.invoke('people:getAll'),
+  createPerson: (name) => ipcRenderer.invoke('people:create', name),
+  updatePerson: (id, name) => ipcRenderer.invoke('people:update', id, name),
+  deletePerson: (id) => ipcRenderer.invoke('people:delete', id),
+  getHoliday: (date) => ipcRenderer.invoke('holidays:get', date),
+  getAllHolidayDates: () => ipcRenderer.invoke('holidays:getAllDates'),
+  setHoliday: (date, name) => ipcRenderer.invoke('holidays:set', date, name),
+  removeHoliday: (date) => ipcRenderer.invoke('holidays:remove', date),
+  sync: () => ipcRenderer.invoke('sync:start'),
+});

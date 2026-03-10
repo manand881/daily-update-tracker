@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Update Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Top title bar -->
+  <div class="title-bar">
+    <span class="title-bar-text">Daily Update Tracker</span>
+    <div class="title-bar-actions">
+      <button id="btn-sync" class="title-bar-icon-btn" title="Sync with peer on same network">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/>
+          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+        </svg>
+      </button>
+      <button id="btn-settings" class="title-bar-icon-btn" title="Settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <div id="settings-dropdown" class="settings-dropdown" style="display:none">
+        <button id="btn-export-json" class="settings-dropdown-item">Export all data to JSON</button>
+        <button id="btn-people-submenu" class="settings-dropdown-item settings-dropdown-item--submenu">
+          People
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="submenu-chevron"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div id="people-submenu" class="settings-submenu" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-content">
+  <!-- Left: Calendar -->
+  <div class="calendar-panel">
+    <div class="cal-nav">
+      <button id="btn-prev">&#8249;</button>
+      <span id="cal-month-label"></span>
+      <button id="btn-next">&#8250;</button>
+    </div>
+    <div id="cal-days" class="cal-scroll"></div>
+  </div>
+
+  <!-- Right: Day detail -->
+  <div class="detail-panel">
+    <div class="search-bar-wrap">
+      <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input id="search-input" type="text" class="search-input" placeholder="Search updates..." autocomplete="off" />
+    </div>
+
+    <div class="detail-header">
+      <div class="detail-header-left">
+        <h2 id="detail-date-label">Select a day</h2>
+        <div id="holiday-badge" style="display:none">
+          <span id="holiday-name-label"></span>
+          <button id="btn-remove-holiday" class="holiday-badge-remove" title="Remove holiday">&#x2715;</button>
+        </div>
+      </div>
+      <div class="detail-header-right" style="display:none" id="detail-header-right">
+        <button id="btn-mark-holiday" class="btn-holiday">Mark as Holiday</button>
+        <div id="header-actions">
+          <button id="btn-add-update" class="btn-primary">+ Add Update</button>
+          <button id="btn-edit-update" class="btn-secondary" style="display:none">Edit</button>
+          <button id="btn-copy-range" class="btn-secondary" style="display:none">Copy to Range</button>
+          <button id="btn-delete-update" class="btn-icon danger" style="display:none">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Holiday composer -->
+    <div id="holiday-composer" class="holiday-composer" style="display:none">
+      <div class="holiday-composer-top">
+        <input id="f-holiday-name" type="text" placeholder="Holiday name (e.g. Christmas)" />
+        <div class="holiday-mode-toggle">
+          <button id="btn-mode-single" class="mode-btn active">Single Day</button>
+          <button id="btn-mode-range" class="mode-btn">Date Range</button>
+        </div>
+      </div>
+      <div class="holiday-dates">
+        <div class="holiday-date-field">
+          <label id="holiday-date-label-start">Date</label>
+          <input id="f-holiday-start" type="date" />
+        </div>
+        <div class="holiday-date-field" id="holiday-end-field" style="display:none">
+          <label>To</label>
+          <input id="f-holiday-end" type="date" />
+        </div>
+      </div>
+      <div class="holiday-composer-actions">
+        <button id="btn-holiday-save" class="btn-primary">Save</button>
+        <button id="btn-holiday-cancel" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Copy to range composer -->
+    <div id="copy-range-composer" class="holiday-composer" style="display:none">
+      <div class="holiday-composer-top">
+        <span class="copy-range-title">Copy this update to a date range</span>
+      </div>
+      <div class="holiday-dates">
+        <div class="holiday-date-field">
+          <label>From</label>
+          <input id="f-copy-start" type="date" />
+        </div>
+        <div class="holiday-date-field">
+          <label>To</label>
+          <input id="f-copy-end" type="date" />
+        </div>
+      </div>
+      <div class="holiday-composer-actions">
+        <button id="btn-copy-save" class="btn-primary">Copy</button>
+        <button id="btn-copy-cancel" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+
+    <div id="updates-list" class="updates-list"></div>
+
+    <!-- Composer (hidden until add is clicked) -->
+    <div id="composer" class="composer" style="display:none">
+      <div class="field">
+        <label>What did you do? <span class="required">*</span></label>
+        <div class="rich-editor-wrap">
+          <div class="format-toolbar">
+            <button type="button" class="fmt-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+            <button type="button" class="fmt-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+            <button type="button" class="fmt-btn" data-cmd="underline" title="Underline"><u>U</u></button>
+            <span class="fmt-sep"></span>
+            <button type="button" class="fmt-btn" data-cmd="insertUnorderedList" title="Bullet list">&#8226; List</button>
+            <button type="button" class="fmt-btn" data-cmd="insertOrderedList" title="Numbered list">1. List</button>
+          </div>
+          <div id="f-what" class="rich-editor" contenteditable="true" data-placeholder="Describe what you worked on..."></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Repos / projects touched</label>
+          <div class="who-field" id="repos-field">
+            <div class="who-wrap" id="repos-wrap">
+              <div id="repos-tags" class="who-tags"></div>
+              <input id="f-repos-input" type="text" class="who-input" placeholder="Type to add repo..." autocomplete="off" />
+            </div>
+            <div id="repos-dropdown" class="people-dropdown" style="display:none"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Who did you work with?</label>
+          <div class="who-field" id="who-field">
+            <div class="who-wrap" id="who-wrap">
+              <div id="who-tags" class="who-tags"></div>
+              <input id="f-who-input" type="text" class="who-input" placeholder="Type @ to tag someone..." autocomplete="off" />
+            </div>
+            <div id="people-dropdown" class="people-dropdown" style="display:none"></div>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Why did you do it?</label>
+        <textarea id="f-why" rows="2" placeholder="Context or motivation..."></textarea>
+      </div>
+      <div class="field">
+        <label>Impact</label>
+        <textarea id="f-impact" rows="2" placeholder="What effect did this have?"></textarea>
+      </div>
+      <div class="field">
+        <label>Impediments</label>
+        <textarea id="f-impediments" rows="2" placeholder="Any blockers or issues you faced..."></textarea>
+      </div>
+      <div class="composer-actions">
+        <button id="btn-cancel" class="btn-secondary">Cancel</button>
+        <button id="btn-save" class="btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+  </div><!-- /.main-content -->
+
+  <div id="toast" class="toast" style="display:none"></div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

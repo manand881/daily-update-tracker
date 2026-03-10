@@ -1,0 +1,29 @@
+appId: com.dailyupdatetracker.app
+productName: Daily Update Tracker
+
+files:
+  - main.js
+  - preload.js
+  - renderer/**
+  - db/**
+  - node_modules/**
+  - package.json
+
+# Don't attempt code signing (no Apple certificate)
+mac:
+  identity: null
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: arm64
+
+linux:
+  category: Utility
+  target:
+    - target: deb
+      arch: x64
+    - target: AppImage
+      arch: x64
+
+# Silence publish — no auto-update configured
+publish: null
