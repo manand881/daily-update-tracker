@@ -2,6 +2,10 @@
   "name": "daily-update-tracker",
   "version": "1.0.0",
   "description": "A daily update tracker desktop app",
+  "author": {
+    "name": "Anand",
+    "email": "manand881@gmail.com"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
