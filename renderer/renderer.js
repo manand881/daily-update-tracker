@@ -4,6 +4,7 @@ let holidayDates = new Set();  // dates marked as holidays
 let selectedDate = todayStr();
 let viewYear, viewMonth;       // currently displayed calendar month
 let editingId = null;          // id of update being edited
+let autoSaveTimer = null;      // debounce timer for autosave
 let knownPeople = [];          // people loaded from DB
 let selectedPeople = [];       // names currently tagged in who field
 let knownRepos = [];           // repos loaded from DB
@@ -49,6 +50,7 @@ const reposDropdown  = document.getElementById('repos-dropdown');
 const fWhy          = document.getElementById('f-why');
 const fImpact       = document.getElementById('f-impact');
 const fImpediments  = document.getElementById('f-impediments');
+const fTicketLink   = document.getElementById('f-ticket-link');
 const whoField      = document.getElementById('who-field');
 const whoWrap       = document.getElementById('who-wrap');
 const whoTagsEl     = document.getElementById('who-tags');
@@ -68,6 +70,7 @@ const btnExportJson     = document.getElementById('btn-export-json');
 const btnPeopleSubmenu  = document.getElementById('btn-people-submenu');
 const peopleSubmenu     = document.getElementById('people-submenu');
 const toastEl           = document.getElementById('toast');
+const autoSaveStatus    = document.getElementById('autosave-status');
 
 // ── Helpers ────────────────────────────────────────────
 function localDateStr(date) {
@@ -372,12 +375,13 @@ function createCard(u) {
   card.dataset.id = u.id;
 
   const fields = [
-    { key: 'what',   label: 'What I did',            value: u.what,   raw: true },
-    { key: 'repos',  label: 'Repos / projects',       value: u.repos  },
-    { key: 'why',    label: 'Why',                    value: u.why    },
-    { key: 'impact', label: 'Impact',                 value: u.impact },
-    { key: 'who',    label: 'Who I worked with',      value: u.who    },
-    { key: 'impediments', label: 'Impediments',       value: u.impediments },
+    { key: 'what',        label: 'What I did today',      value: u.what,        raw: true },
+    { key: 'repos',       label: 'Repos / projects',      value: u.repos        },
+    { key: 'why',         label: 'Why',                   value: u.why          },
+    { key: 'impact',      label: 'Impact',                value: u.impact       },
+    { key: 'who',         label: 'Who I worked with',     value: u.who          },
+    { key: 'impediments', label: 'Impediments',           value: u.impediments  },
+    { key: 'ticket_link', label: 'Ticket',                value: u.ticket_link  },
   ].filter(f => f.value && f.value.trim());
 
   const fieldsHtml = fields.map(f => `
@@ -428,6 +432,7 @@ function renderWhoTags() {
     tag.querySelector('.who-tag-remove').addEventListener('click', () => {
       selectedPeople = selectedPeople.filter(n => n !== name);
       renderWhoTags();
+      scheduleAutoSave();
     });
     whoTagsEl.appendChild(tag);
   });
@@ -440,6 +445,7 @@ function addWhoTag(name) {
   renderWhoTags();
   hidePeopleDropdown();
   whoInput.focus();
+  scheduleAutoSave();
 }
 
 function hidePeopleDropdown() {
@@ -532,6 +538,7 @@ function renderReposTags() {
     tag.querySelector('.who-tag-remove').addEventListener('click', () => {
       selectedRepos = selectedRepos.filter(n => n !== name);
       renderReposTags();
+      scheduleAutoSave();
     });
     reposTagsEl.appendChild(tag);
   });
@@ -544,6 +551,7 @@ function addRepoTag(name) {
   renderReposTags();
   hideReposDropdown();
   reposInput.focus();
+  scheduleAutoSave();
 }
 
 function hideReposDropdown() {
@@ -626,6 +634,7 @@ function openComposerForEdit(u) {
   fImpact.value      = u.impact      || '';
   setWhoValue(u.who  || '');
   fImpediments.value = u.impediments || '';
+  fTicketLink.value  = u.ticket_link || '';
   composer.style.display = '';
   fWhat.focus();
   updateFmtButtons();
@@ -634,16 +643,53 @@ function openComposerForEdit(u) {
 }
 
 function hideComposer() {
+  clearTimeout(autoSaveTimer);
   composer.style.display = 'none';
   clearComposer();
   editingId = null;
+  autoSaveStatus.textContent = '';
+  autoSaveStatus.classList.remove('autosave-status--visible');
 }
 
 function clearComposer() {
   fWhat.innerHTML = '';
-  fWhy.value = fImpact.value = fImpediments.value = '';
+  fWhy.value = fImpact.value = fImpediments.value = fTicketLink.value = '';
   clearRepos();
   clearWho();
+}
+
+function scheduleAutoSave() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(autoSaveComposer, 500);
+}
+
+async function autoSaveComposer() {
+  if (!fWhat.innerText.trim()) return;
+
+  const fields = {
+    date:        selectedDate,
+    what:        fWhat.innerHTML.trim(),
+    repos:       getReposValue(),
+    why:         fWhy.value.trim(),
+    impact:      fImpact.value.trim(),
+    who:         getWhoValue(),
+    impediments: fImpediments.value.trim(),
+    ticket_link: fTicketLink.value.trim(),
+  };
+
+  if (editingId) {
+    await window.api.edit(editingId, fields);
+  } else {
+    const created = await window.api.create(fields);
+    editingId = created.id;
+    const dates = await window.api.getDatesWithUpdates();
+    activeDates = new Set(dates);
+    renderCalendar(viewYear, viewMonth);
+  }
+
+  autoSaveStatus.textContent = 'Autosaved';
+  autoSaveStatus.classList.add('autosave-status--visible');
+  setTimeout(() => autoSaveStatus.classList.remove('autosave-status--visible'), 2000);
 }
 
 async function saveComposer() {
@@ -651,13 +697,14 @@ async function saveComposer() {
   if (!fWhat.innerText.trim()) { fWhat.focus(); return; }
 
   const fields = {
-    date:   selectedDate,
+    date:        selectedDate,
     what,
-    repos:  getReposValue(),
-    why:    fWhy.value.trim(),
-    impact: fImpact.value.trim(),
+    repos:       getReposValue(),
+    why:         fWhy.value.trim(),
+    impact:      fImpact.value.trim(),
     who:         getWhoValue(),
     impediments: fImpediments.value.trim(),
+    ticket_link: fTicketLink.value.trim(),
   };
 
   if (editingId) {
@@ -732,6 +779,13 @@ fmtBtns.forEach(btn => {
 
 fWhat.addEventListener('keyup', updateFmtButtons);
 fWhat.addEventListener('mouseup', updateFmtButtons);
+
+// ── Autosave triggers ──────────────────────────────────
+fWhat.addEventListener('input', scheduleAutoSave);
+fWhy.addEventListener('input', scheduleAutoSave);
+fImpact.addEventListener('input', scheduleAutoSave);
+fImpediments.addEventListener('input', scheduleAutoSave);
+fTicketLink.addEventListener('input', scheduleAutoSave);
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {

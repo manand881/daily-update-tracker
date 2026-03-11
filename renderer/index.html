@@ -123,7 +123,7 @@
     <!-- Composer (hidden until add is clicked) -->
     <div id="composer" class="composer" style="display:none">
       <div class="field">
-        <label>What did you do? <span class="required">*</span></label>
+        <label>What did you do today? <span class="required">*</span></label>
         <div class="rich-editor-wrap">
           <div class="format-toolbar">
             <button type="button" class="fmt-btn" data-cmd="bold" title="Bold"><b>B</b></button>
@@ -170,7 +170,12 @@
         <label>Impediments</label>
         <textarea id="f-impediments" rows="2" placeholder="Any blockers or issues you faced..."></textarea>
       </div>
+      <div class="field">
+        <label>Ticket link</label>
+        <input id="f-ticket-link" type="text" placeholder="e.g. PROJ-123 or a link" />
+      </div>
       <div class="composer-actions">
+        <span id="autosave-status" class="autosave-status"></span>
         <button id="btn-cancel" class="btn-secondary">Cancel</button>
         <button id="btn-save" class="btn-primary">Save</button>
       </div>

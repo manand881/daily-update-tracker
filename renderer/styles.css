@@ -616,6 +616,7 @@ body {
   opacity: 0.65;
 }
 
+
 .card-actions {
   display: flex;
   gap: 6px;
@@ -727,8 +728,21 @@ body {
 .composer-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 10px;
   margin-top: 4px;
+}
+
+.autosave-status {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--khaki-beige);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.autosave-status--visible {
+  opacity: 1;
 }
 
 .btn-primary {
