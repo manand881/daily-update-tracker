@@ -733,7 +733,6 @@ async function autoSaveComposer() {
 }
 
 async function saveComposer() {
-  const what = fWhat.innerHTML.trim();
   if (!fWhat.innerText.trim()) { fWhat.focus(); return; }
   clearTimeout(autoSaveTimer);
 
@@ -742,9 +741,11 @@ async function saveComposer() {
     try { await savingPromise; } catch (_) {}
   }
 
+  // Capture fields after awaiting so all values (including fWhat) are consistent
+  if (!fWhat.innerText.trim()) { fWhat.focus(); return; }
   const fields = {
     date:        selectedDate,
-    what,
+    what:        fWhat.innerHTML.trim(),
     repos:       getReposValue(),
     why:         fWhy.value.trim(),
     impact:      fImpact.value.trim(),

@@ -6,6 +6,7 @@ const sync = require('./sync');
 
 let syncInProgress = false;
 let autoSyncTimer = null;
+let appQuitting = false;
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -46,11 +47,11 @@ app.whenReady().then(() => {
       } catch (_) {}
       syncInProgress = false;
     }
-    autoSyncTimer = setTimeout(autoSync, 5000);
+    if (!appQuitting) autoSyncTimer = setTimeout(autoSync, 5000);
   }
   autoSyncTimer = setTimeout(autoSync, 5000);
 
-  app.on('will-quit', () => clearTimeout(autoSyncTimer));
+  app.on('will-quit', () => { appQuitting = true; clearTimeout(autoSyncTimer); });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
