@@ -33,7 +33,8 @@
 - Pushing a tag triggers the CI build and publishes `.dmg` and `.deb` to GitHub Releases
 - Never push to main directly. create a branch commit, push, raise pr, merge.
 - all branches must be based on main branch. never merge a branch which is not based on main
-- branch name should always start with something like chore/, feat/, enhc, fix/, etc. and should not be more than 75 chars long
+- branch name should always start with something like chore/, feat/, enhc, fix/, etc. and should not be more than 75 chars long. with commit
+message not exceeding 50 chars per line
 
 ## Color Scheme
 | Name | Hex | Usage |

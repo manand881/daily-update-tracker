@@ -61,6 +61,15 @@ try { db.exec(`ALTER TABLE people ADD COLUMN sync_id TEXT`); } catch (_) {}
 try { db.exec(`ALTER TABLE repos ADD COLUMN sync_id TEXT`); } catch (_) {}
 try { db.exec(`ALTER TABLE holidays ADD COLUMN sync_id TEXT`); } catch (_) {}
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS deleted_records (
+    sync_id TEXT NOT NULL,
+    table_name TEXT NOT NULL,
+    deleted_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (sync_id, table_name)
+  );
+`);
+
 // Unique indexes for sync_id lookups
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_updates_sync_id ON updates(sync_id) WHERE sync_id IS NOT NULL`);
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_people_sync_id ON people(sync_id) WHERE sync_id IS NOT NULL`);
@@ -106,6 +115,10 @@ module.exports = {
   },
 
   deleteUpdate(id) {
+    const row = db.prepare('SELECT sync_id FROM updates WHERE id = ?').get(id);
+    if (row && row.sync_id) {
+      db.prepare(`INSERT OR REPLACE INTO deleted_records (sync_id, table_name, deleted_at) VALUES (?, 'updates', datetime('now'))`).run(row.sync_id);
+    }
     db.prepare('DELETE FROM updates WHERE id = ?').run(id);
     return { success: true };
   },
@@ -125,6 +138,10 @@ module.exports = {
   },
 
   deletePerson(id) {
+    const row = db.prepare('SELECT sync_id FROM people WHERE id = ?').get(id);
+    if (row && row.sync_id) {
+      db.prepare(`INSERT OR REPLACE INTO deleted_records (sync_id, table_name, deleted_at) VALUES (?, 'people', datetime('now'))`).run(row.sync_id);
+    }
     db.prepare('DELETE FROM people WHERE id = ?').run(id);
     return { success: true };
   },
@@ -140,6 +157,10 @@ module.exports = {
   },
 
   deleteRepo(id) {
+    const row = db.prepare('SELECT sync_id FROM repos WHERE id = ?').get(id);
+    if (row && row.sync_id) {
+      db.prepare(`INSERT OR REPLACE INTO deleted_records (sync_id, table_name, deleted_at) VALUES (?, 'repos', datetime('now'))`).run(row.sync_id);
+    }
     db.prepare('DELETE FROM repos WHERE id = ?').run(id);
     return { success: true };
   },
@@ -166,17 +187,36 @@ module.exports = {
 
   getAllForSync() {
     return {
-      updates:  db.prepare('SELECT * FROM updates').all(),
-      people:   db.prepare('SELECT * FROM people').all(),
-      repos:    db.prepare('SELECT * FROM repos').all(),
-      holidays: db.prepare('SELECT * FROM holidays').all(),
+      updates:        db.prepare('SELECT * FROM updates').all(),
+      people:         db.prepare('SELECT * FROM people').all(),
+      repos:          db.prepare('SELECT * FROM repos').all(),
+      holidays:       db.prepare('SELECT * FROM holidays').all(),
+      deleted_records: db.prepare('SELECT * FROM deleted_records').all(),
     };
   },
 
-  mergeFromPeer({ updates = [], people = [], repos = [], holidays = [] }) {
+  mergeFromPeer({ updates = [], people = [], repos = [], holidays = [], deleted_records = [] }) {
     let changed = 0;
 
+    // Apply tombstones first — delete locally and record tombstone so we don't re-insert
+    const applyTombstones = db.transaction(() => {
+      const saveTombstone = db.prepare(`INSERT OR REPLACE INTO deleted_records (sync_id, table_name, deleted_at) VALUES (@sync_id, @table_name, @deleted_at)`);
+      const deleteStmts = {
+        updates:  db.prepare('DELETE FROM updates WHERE sync_id = ?'),
+        people:   db.prepare('DELETE FROM people WHERE sync_id = ?'),
+        repos:    db.prepare('DELETE FROM repos WHERE sync_id = ?'),
+        holidays: db.prepare('DELETE FROM holidays WHERE sync_id = ?'),
+      };
+      for (const t of deleted_records) {
+        if (!t.sync_id || !deleteStmts[t.table_name]) continue;
+        const { changes } = deleteStmts[t.table_name].run(t.sync_id);
+        if (changes) changed++;
+        saveTombstone.run(t);
+      }
+    });
+
     const mergeUpdates = db.transaction(() => {
+      const isTombstoned = db.prepare(`SELECT 1 FROM deleted_records WHERE sync_id = ? AND table_name = 'updates'`);
       const find   = db.prepare('SELECT updated_at, created_at FROM updates WHERE sync_id = ?');
       const insert = db.prepare(`
         INSERT INTO updates (sync_id, date, what, repos, why, impact, who, impediments, ticket_link, created_at, updated_at)
@@ -189,6 +229,7 @@ module.exports = {
       `);
       for (const u of updates) {
         if (!u.sync_id) continue;
+        if (isTombstoned.get(u.sync_id)) continue;
         const existing = find.get(u.sync_id);
         if (!existing) {
           insert.run(u); changed++;
@@ -201,11 +242,13 @@ module.exports = {
     });
 
     const mergePeople = db.transaction(() => {
+      const isTombstoned = db.prepare(`SELECT 1 FROM deleted_records WHERE sync_id = ? AND table_name = 'people'`);
       const find   = db.prepare('SELECT created_at FROM people WHERE sync_id = ?');
       const insert = db.prepare('INSERT OR IGNORE INTO people (sync_id, name, created_at) VALUES (@sync_id, @name, @created_at)');
       const update = db.prepare('UPDATE people SET name=@name WHERE sync_id=@sync_id');
       for (const p of people) {
         if (!p.sync_id) continue;
+        if (isTombstoned.get(p.sync_id)) continue;
         const existing = find.get(p.sync_id);
         if (!existing) {
           insert.run(p); changed++;
@@ -216,26 +259,31 @@ module.exports = {
     });
 
     const mergeRepos = db.transaction(() => {
+      const isTombstoned = db.prepare(`SELECT 1 FROM deleted_records WHERE sync_id = ? AND table_name = 'repos'`);
       const insert = db.prepare('INSERT OR IGNORE INTO repos (sync_id, name, created_at) VALUES (@sync_id, @name, @created_at)');
       for (const r of repos) {
         if (!r.sync_id) continue;
+        if (isTombstoned.get(r.sync_id)) continue;
         const { changes } = insert.run(r);
         changed += changes;
       }
     });
 
     const mergeHolidays = db.transaction(() => {
+      const isTombstoned = db.prepare(`SELECT 1 FROM deleted_records WHERE sync_id = ? AND table_name = 'holidays'`);
       const find   = db.prepare('SELECT sync_id FROM holidays WHERE date = ?');
       const insert = db.prepare('INSERT OR IGNORE INTO holidays (sync_id, date, name) VALUES (@sync_id, @date, @name)');
       const update = db.prepare('UPDATE holidays SET name=@name, sync_id=@sync_id WHERE date=@date');
       for (const h of holidays) {
         if (!h.sync_id) continue;
+        if (isTombstoned.get(h.sync_id)) continue;
         const existing = find.get(h.date);
         if (!existing) { insert.run(h); changed++; }
         else update.run(h);
       }
     });
 
+    applyTombstones();
     mergeUpdates();
     mergePeople();
     mergeRepos();
@@ -245,6 +293,10 @@ module.exports = {
   },
 
   removeHoliday(date) {
+    const row = db.prepare('SELECT sync_id FROM holidays WHERE date = ?').get(date);
+    if (row && row.sync_id) {
+      db.prepare(`INSERT OR REPLACE INTO deleted_records (sync_id, table_name, deleted_at) VALUES (?, 'holidays', datetime('now'))`).run(row.sync_id);
+    }
     db.prepare('DELETE FROM holidays WHERE date = ?').run(date);
     return { success: true };
   },
