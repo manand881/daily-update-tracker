@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
   exportJson: () => ipcRenderer.invoke('export:json'),
   getAllRepos: () => ipcRenderer.invoke('repos:getAll'),
   createRepo: (name) => ipcRenderer.invoke('repos:create', name),
+  deleteRepo: (id) => ipcRenderer.invoke('repos:delete', id),
   getAllPeople: () => ipcRenderer.invoke('people:getAll'),
   createPerson: (name) => ipcRenderer.invoke('people:create', name),
   updatePerson: (id, name) => ipcRenderer.invoke('people:update', id, name),
