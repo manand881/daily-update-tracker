@@ -2,6 +2,7 @@
   "name": "daily-update-tracker",
   "version": "1.0.0",
   "description": "A daily update tracker desktop app",
+  "license": "MIT",
   "author": {
     "name": "Anand",
     "email": "manand881@gmail.com"
