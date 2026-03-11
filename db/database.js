@@ -6,12 +6,56 @@ const { randomUUID } = require('crypto');
 const dbPath = path.join(app.getPath('userData'), 'updates.db');
 const db = new Database(dbPath);
 
-// Migrate existing databases
+// Create tables first (safe for both fresh installs and existing DBs)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS holidays (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT UNIQUE NOT NULL,
+    name TEXT DEFAULT 'Holiday',
+    sync_id TEXT
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS people (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    created_at TEXT DEFAULT (datetime('now')),
+    sync_id TEXT
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS repos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    created_at TEXT DEFAULT (datetime('now')),
+    sync_id TEXT
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS updates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,
+    what TEXT NOT NULL,
+    repos TEXT DEFAULT '',
+    why TEXT DEFAULT '',
+    impact TEXT DEFAULT '',
+    who TEXT DEFAULT '',
+    impediments TEXT DEFAULT '',
+    ticket_link TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT,
+    sync_id TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_updates_date ON updates(date);
+`);
+
+// Migrate existing databases (no-ops on fresh installs where columns already exist)
 try { db.exec(`ALTER TABLE updates ADD COLUMN impediments TEXT DEFAULT ''`); } catch (_) {}
 try { db.exec(`ALTER TABLE updates ADD COLUMN updated_at TEXT`); } catch (_) {}
 try { db.exec(`ALTER TABLE updates ADD COLUMN ticket_link TEXT DEFAULT ''`); } catch (_) {}
-
-// Sync migrations: add sync_id to all tables
 try { db.exec(`ALTER TABLE updates ADD COLUMN sync_id TEXT`); } catch (_) {}
 try { db.exec(`ALTER TABLE people ADD COLUMN sync_id TEXT`); } catch (_) {}
 try { db.exec(`ALTER TABLE repos ADD COLUMN sync_id TEXT`); } catch (_) {}
@@ -33,46 +77,6 @@ backfill('updates');
 backfill('people');
 backfill('repos');
 backfill('holidays');
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS holidays (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT UNIQUE NOT NULL,
-    name TEXT DEFAULT 'Holiday'
-  );
-`);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS people (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
-`);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS repos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
-`);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS updates (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL,
-    what TEXT NOT NULL,
-    repos TEXT DEFAULT '',
-    why TEXT DEFAULT '',
-    impact TEXT DEFAULT '',
-    who TEXT DEFAULT '',
-    impediments TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_updates_date ON updates(date);
-`);
 
 module.exports = {
   getAllUpdates() {
@@ -130,8 +134,14 @@ module.exports = {
   },
 
   createRepo(name) {
-    const result = db.prepare('INSERT INTO repos (sync_id, name) VALUES (?, ?)').run(randomUUID(), name.trim());
+    const normalized = name.trim().replace(/^@+/, '');
+    const result = db.prepare('INSERT INTO repos (sync_id, name) VALUES (?, ?)').run(randomUUID(), normalized);
     return db.prepare('SELECT * FROM repos WHERE id = ?').get(result.lastInsertRowid);
+  },
+
+  deleteRepo(id) {
+    db.prepare('DELETE FROM repos WHERE id = ?').run(id);
+    return { success: true };
   },
 
   getHoliday(date) {
@@ -237,5 +247,10 @@ module.exports = {
   removeHoliday(date) {
     db.prepare('DELETE FROM holidays WHERE date = ?').run(date);
     return { success: true };
+  },
+
+  // Call after running migrations to ensure peers will accept the latest data on next sync.
+  touchAllUpdatedAt() {
+    db.prepare(`UPDATE updates SET updated_at = datetime('now')`).run();
   },
 };

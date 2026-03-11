@@ -154,7 +154,9 @@ body {
 }
 
 .settings-submenu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
   background: none;
   border: none;
@@ -162,9 +164,30 @@ body {
   font-size: 12px;
   font-family: inherit;
   text-align: left;
-  padding: 6px 12px 6px 20px;
+  padding: 4px 8px 4px 20px;
   cursor: default;
   opacity: 0.85;
+}
+
+.submenu-item-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--khaki-beige);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.settings-submenu-item:hover .submenu-item-delete {
+  opacity: 1;
+}
+
+.submenu-item-delete:hover {
+  color: var(--vibrant-coral);
 }
 
 .settings-submenu-empty {
@@ -670,7 +693,7 @@ body {
   padding: 20px 28px;
   background: var(--prussian-blue-dark);
   overflow-y: auto;
-  max-height: 60%;
+  flex: 1;
 }
 
 .field-row {

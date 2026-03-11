@@ -68,8 +68,10 @@ const syncPeerCount     = document.getElementById('sync-peer-count');
 const btnSettings       = document.getElementById('btn-settings');
 const settingsDropdown  = document.getElementById('settings-dropdown');
 const btnExportJson     = document.getElementById('btn-export-json');
-const btnPeopleSubmenu  = document.getElementById('btn-people-submenu');
-const peopleSubmenu     = document.getElementById('people-submenu');
+const btnPeopleSubmenu   = document.getElementById('btn-people-submenu');
+const peopleSubmenu      = document.getElementById('people-submenu');
+const btnProjectsSubmenu = document.getElementById('btn-projects-submenu');
+const projectsSubmenu    = document.getElementById('projects-submenu');
 const toastEl           = document.getElementById('toast');
 const autoSaveStatus    = document.getElementById('autosave-status');
 
@@ -90,8 +92,11 @@ function formatDateLabel(dateStr) {
   const yDate = new Date();
   yDate.setDate(yDate.getDate() - 1);
   const yesterday = localDateStr(yDate);
-  if (dateStr === today) return 'Today';
-  if (dateStr === yesterday) return 'Yesterday';
+  const shortDate = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric'
+  });
+  if (dateStr === today) return `Today, ${shortDate}`;
+  if (dateStr === yesterday) return `Yesterday, ${shortDate}`;
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric'
   });
@@ -437,7 +442,7 @@ function renderWhoTags() {
     });
     whoTagsEl.appendChild(tag);
   });
-  whoInput.placeholder = selectedPeople.length ? '' : 'Type @ to tag someone...';
+  whoInput.placeholder = selectedPeople.length ? '' : 'Type to add someone...';
 }
 
 function addWhoTag(name) {
@@ -492,10 +497,9 @@ function showPeopleDropdown(query) {
 whoWrap.addEventListener('click', () => whoInput.focus());
 
 whoInput.addEventListener('input', () => {
-  const val = whoInput.value;
-  const atIdx = val.lastIndexOf('@');
-  if (atIdx !== -1) {
-    showPeopleDropdown(val.slice(atIdx + 1));
+  const val = whoInput.value.trim();
+  if (val) {
+    showPeopleDropdown(val);
   } else {
     hidePeopleDropdown();
   }
@@ -576,15 +580,16 @@ function showReposDropdown(query) {
     reposDropdown.appendChild(btn);
   });
 
-  const exactMatch = knownRepos.some(r => r.name.toLowerCase() === query.toLowerCase());
-  if (query && !exactMatch) {
+  const normalized = query.replace(/^@+/, '');
+  const exactMatch = knownRepos.some(r => r.name.toLowerCase() === normalized.toLowerCase());
+  if (normalized && !exactMatch) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'people-dropdown-item create-new';
-    btn.textContent = `+ Add "${query}"`;
+    btn.textContent = `+ Add "${normalized}"`;
     btn.addEventListener('mousedown', async (e) => {
       e.preventDefault();
-      const repo = await window.api.createRepo(query);
+      const repo = await window.api.createRepo(normalized);
       knownRepos.push(repo);
       knownRepos.sort((a, b) => a.name.localeCompare(b.name));
       addRepoTag(repo.name);
@@ -622,6 +627,7 @@ document.addEventListener('click', (e) => {
 function openComposerForAdd() {
   editingId = null;
   clearComposer();
+  updatesList.style.display = 'none';
   composer.style.display = '';
   fWhat.focus();
   updateFmtButtons();
@@ -636,6 +642,7 @@ function openComposerForEdit(u) {
   setWhoValue(u.who  || '');
   fImpediments.value = u.impediments || '';
   fTicketLink.value  = u.ticket_link || '';
+  updatesList.style.display = 'none';
   composer.style.display = '';
   fWhat.focus();
   updateFmtButtons();
@@ -646,6 +653,7 @@ function openComposerForEdit(u) {
 function hideComposer() {
   clearTimeout(autoSaveTimer);
   composer.style.display = 'none';
+  updatesList.style.display = '';
   clearComposer();
   editingId = null;
   autoSaveStatus.textContent = '';
@@ -865,6 +873,8 @@ document.addEventListener('click', () => {
   settingsDropdown.style.display = 'none';
   peopleSubmenu.style.display = 'none';
   btnPeopleSubmenu.querySelector('.submenu-chevron').classList.remove('open');
+  projectsSubmenu.style.display = 'none';
+  btnProjectsSubmenu.querySelector('.submenu-chevron').classList.remove('open');
 });
 
 btnExportJson.addEventListener('click', async () => {
@@ -882,6 +892,41 @@ btnPeopleSubmenu.addEventListener('click', (e) => {
   }
   peopleSubmenu.style.display = isOpen ? 'none' : '';
   btnPeopleSubmenu.querySelector('.submenu-chevron').classList.toggle('open', !isOpen);
+});
+
+function renderProjectsSubmenu() {
+  projectsSubmenu.innerHTML = '';
+  if (!knownRepos.length) {
+    projectsSubmenu.innerHTML = '<span class="settings-submenu-empty">No projects added yet</span>';
+    return;
+  }
+  knownRepos.forEach(r => {
+    const row = document.createElement('span');
+    row.className = 'settings-submenu-item';
+    const label = document.createElement('span');
+    label.textContent = r.name;
+    const del = document.createElement('button');
+    del.className = 'submenu-item-delete';
+    del.title = 'Delete';
+    del.innerHTML = '&times;';
+    del.addEventListener('mousedown', async (e) => {
+      e.stopPropagation();
+      await window.api.deleteRepo(r.id);
+      knownRepos = knownRepos.filter(x => x.id !== r.id);
+      renderProjectsSubmenu();
+    });
+    row.appendChild(label);
+    row.appendChild(del);
+    projectsSubmenu.appendChild(row);
+  });
+}
+
+btnProjectsSubmenu.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isOpen = projectsSubmenu.style.display !== 'none';
+  if (!isOpen) renderProjectsSubmenu();
+  projectsSubmenu.style.display = isOpen ? 'none' : '';
+  btnProjectsSubmenu.querySelector('.submenu-chevron').classList.toggle('open', !isOpen);
 });
 
 // ── Init ───────────────────────────────────────────────
@@ -918,6 +963,9 @@ btnPeopleSubmenu.addEventListener('click', (e) => {
     knownPeople = people;
     knownRepos = repos;
     renderCalendar(viewYear, viewMonth);
-    await selectDate(selectedDate);
+    // Don't interrupt the composer if the user is currently editing
+    if (composer.style.display === 'none') {
+      await selectDate(selectedDate);
+    }
   });
 })();

@@ -78,6 +78,7 @@ ipcMain.handle('people:delete', (_, id) => db.deletePerson(id));
 
 ipcMain.handle('repos:getAll', () => db.getAllRepos());
 ipcMain.handle('repos:create', (_, name) => db.createRepo(name));
+ipcMain.handle('repos:delete', (_, id) => db.deleteRepo(id));
 
 ipcMain.handle('holidays:get', (_, date) => db.getHoliday(date));
 ipcMain.handle('holidays:getAllDates', () => db.getAllHolidayDates());
