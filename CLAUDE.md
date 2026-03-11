@@ -35,6 +35,7 @@
 - all branches must be based on main branch. never merge a branch which is not based on main
 - branch name should always start with something like chore/, feat/, enhc, fix/, etc. and should not be more than 75 chars long. with commit
 message not exceeding 50 chars per line
+- have only one commit per branch. if there are more than squash it.
 
 ## Color Scheme
 | Name | Hex | Usage |

@@ -5,6 +5,7 @@ let selectedDate = todayStr();
 let viewYear, viewMonth;       // currently displayed calendar month
 let editingId = null;          // id of update being edited
 let autoSaveTimer = null;      // debounce timer for autosave
+let savingPromise = null;      // tracks in-flight save to prevent race with manual save
 let knownPeople = [];          // people loaded from DB
 let selectedPeople = [];       // names currently tagged in who field
 let knownRepos = [];           // repos loaded from DB
@@ -505,6 +506,7 @@ function showPeopleDropdown(query) {
     btn.textContent = `+ Add "${query}"`;
     btn.addEventListener('mousedown', async (e) => {
       e.preventDefault();
+      hidePeopleDropdown(); // close immediately to prevent duplicate submissions
       const person = await window.api.createPerson(query);
       knownPeople.push(person);
       knownPeople.sort((a, b) => a.name.localeCompare(b.name));
@@ -611,6 +613,7 @@ function showReposDropdown(query) {
     btn.textContent = `+ Add "${normalized}"`;
     btn.addEventListener('mousedown', async (e) => {
       e.preventDefault();
+      hideReposDropdown(); // close immediately to prevent duplicate submissions
       const repo = await window.api.createRepo(normalized);
       knownRepos.push(repo);
       knownRepos.sort((a, b) => a.name.localeCompare(b.name));
@@ -695,41 +698,54 @@ function scheduleAutoSave() {
 }
 
 async function autoSaveComposer() {
-  if (!fWhat.innerText.trim()) return;
+  if (!fWhat.innerText.trim() || savingPromise) return;
 
-  const fields = {
-    date:        selectedDate,
-    what:        fWhat.innerHTML.trim(),
-    repos:       getReposValue(),
-    why:         fWhy.value.trim(),
-    impact:      fImpact.value.trim(),
-    who:         getWhoValue(),
-    impediments: fImpediments.value.trim(),
-    ticket_link: fTicketLink.value.trim(),
-  };
+  savingPromise = (async () => {
+    const fields = {
+      date:        selectedDate,
+      what:        fWhat.innerHTML.trim(),
+      repos:       getReposValue(),
+      why:         fWhy.value.trim(),
+      impact:      fImpact.value.trim(),
+      who:         getWhoValue(),
+      impediments: fImpediments.value.trim(),
+      ticket_link: fTicketLink.value.trim(),
+    };
+    if (editingId) {
+      await window.api.edit(editingId, fields);
+    } else {
+      const created = await window.api.create(fields);
+      editingId = created.id;
+      const dates = await window.api.getDatesWithUpdates();
+      activeDates = new Set(dates);
+      if (!searchActive) renderCalendar(viewYear, viewMonth);
+    }
+  })();
 
-  if (editingId) {
-    await window.api.edit(editingId, fields);
-  } else {
-    const created = await window.api.create(fields);
-    editingId = created.id;
-    const dates = await window.api.getDatesWithUpdates();
-    activeDates = new Set(dates);
-    if (!searchActive) renderCalendar(viewYear, viewMonth);
+  try {
+    await savingPromise;
+    autoSaveStatus.textContent = 'Autosaved';
+    autoSaveStatus.classList.add('autosave-status--visible');
+    setTimeout(() => autoSaveStatus.classList.remove('autosave-status--visible'), 2000);
+  } finally {
+    savingPromise = null;
   }
-
-  autoSaveStatus.textContent = 'Autosaved';
-  autoSaveStatus.classList.add('autosave-status--visible');
-  setTimeout(() => autoSaveStatus.classList.remove('autosave-status--visible'), 2000);
 }
 
 async function saveComposer() {
-  const what = fWhat.innerHTML.trim();
   if (!fWhat.innerText.trim()) { fWhat.focus(); return; }
+  clearTimeout(autoSaveTimer);
 
+  // Wait for any in-flight autosave to finish so editingId is set before we proceed
+  if (savingPromise) {
+    try { await savingPromise; } catch (_) {}
+  }
+
+  // Capture fields after awaiting so all values (including fWhat) are consistent
+  if (!fWhat.innerText.trim()) { fWhat.focus(); return; }
   const fields = {
     date:        selectedDate,
-    what,
+    what:        fWhat.innerHTML.trim(),
     repos:       getReposValue(),
     why:         fWhy.value.trim(),
     impact:      fImpact.value.trim(),

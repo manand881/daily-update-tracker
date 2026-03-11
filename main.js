@@ -4,6 +4,10 @@ const path = require('path');
 const db = require('./db/database');
 const sync = require('./sync');
 
+let syncInProgress = false;
+let autoSyncTimer = null;
+let appQuitting = false;
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1100,
@@ -29,19 +33,25 @@ app.whenReady().then(() => {
   sync.startDiscoveryListener();
 
   async function autoSync() {
-    try {
-      const peers = await sync.discoverPeers(2000);
-      if (peers.length) {
-        let changed = 0;
-        for (const ip of peers) changed += await sync.syncWithPeer(ip);
-        for (const win of BrowserWindow.getAllWindows()) {
-          win.webContents.send('sync:auto', { count: peers.length, changed });
+    if (!syncInProgress) {
+      syncInProgress = true;
+      try {
+        const peers = await sync.discoverPeers(2000);
+        if (peers.length) {
+          let changed = 0;
+          for (const ip of peers) changed += await sync.syncWithPeer(ip);
+          for (const win of BrowserWindow.getAllWindows()) {
+            win.webContents.send('sync:auto', { count: peers.length, changed });
+          }
         }
-      }
-    } catch (_) {}
-    setTimeout(autoSync, 5000);
+      } catch (_) {}
+      syncInProgress = false;
+    }
+    if (!appQuitting) autoSyncTimer = setTimeout(autoSync, 5000);
   }
-  setTimeout(autoSync, 5000);
+  autoSyncTimer = setTimeout(autoSync, 5000);
+
+  app.on('will-quit', () => { appQuitting = true; clearTimeout(autoSyncTimer); });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -88,6 +98,8 @@ ipcMain.handle('holidays:set', (_, date, name) => db.setHoliday(date, name));
 ipcMain.handle('holidays:remove', (_, date) => db.removeHoliday(date));
 
 ipcMain.handle('sync:start', async () => {
+  if (syncInProgress) return { success: false, message: 'Sync already in progress.' };
+  syncInProgress = true;
   try {
     const peers = await sync.discoverPeers(2000);
     if (!peers.length) return { success: false, message: 'No peers found on the network.' };
@@ -96,5 +108,7 @@ ipcMain.handle('sync:start', async () => {
     return { success: true, count: peers.length, changed };
   } catch (e) {
     return { success: false, message: e.message };
+  } finally {
+    syncInProgress = false;
   }
 });
