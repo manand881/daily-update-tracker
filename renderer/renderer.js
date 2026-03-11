@@ -366,6 +366,7 @@ async function saveCopyRange() {
         impact:      copySourceUpdate.impact      || '',
         who:         copySourceUpdate.who         || '',
         impediments: copySourceUpdate.impediments || '',
+        ticket_link: copySourceUpdate.ticket_link || '',
       });
     }
     cur.setDate(cur.getDate() + 1);
@@ -963,8 +964,8 @@ btnProjectsSubmenu.addEventListener('click', (e) => {
     knownPeople = people;
     knownRepos = repos;
     renderCalendar(viewYear, viewMonth);
-    // Don't interrupt the composer if the user is currently editing
-    if (composer.style.display === 'none') {
+    // Don't interrupt the composer or copy-range panel if the user is currently editing
+    if (composer.style.display === 'none' && copyRangeComposer.style.display === 'none') {
       await selectDate(selectedDate);
     }
   });
