@@ -987,6 +987,27 @@ body {
   gap: 4px;
 }
 
+/* ── Sync wrapper + peer count badge ── */
+.sync-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sync-peer-count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #f87060;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+
 /* ── Sync button spin ── */
 @keyframes spin {
   to { transform: rotate(360deg); }

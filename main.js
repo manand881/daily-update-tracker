@@ -26,6 +26,22 @@ app.whenReady().then(() => {
   createWindow();
   sync.startHttpServer(db);
   sync.startDiscoveryListener();
+
+  async function autoSync() {
+    try {
+      const peers = await sync.discoverPeers(2000);
+      if (peers.length) {
+        let changed = 0;
+        for (const ip of peers) changed += await sync.syncWithPeer(ip);
+        for (const win of BrowserWindow.getAllWindows()) {
+          win.webContents.send('sync:auto', { count: peers.length, changed });
+        }
+      }
+    } catch (_) {}
+    setTimeout(autoSync, 5000);
+  }
+  setTimeout(autoSync, 5000);
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -71,8 +87,9 @@ ipcMain.handle('sync:start', async () => {
   try {
     const peers = await sync.discoverPeers(2000);
     if (!peers.length) return { success: false, message: 'No peers found on the network.' };
-    for (const ip of peers) await sync.syncWithPeer(ip);
-    return { success: true, count: peers.length };
+    let changed = 0;
+    for (const ip of peers) changed += await sync.syncWithPeer(ip);
+    return { success: true, count: peers.length, changed };
   } catch (e) {
     return { success: false, message: e.message };
   }

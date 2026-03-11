@@ -157,9 +157,10 @@ function httpPost(url, body) {
 
 async function syncWithPeer(peerIP) {
   const peerData = await httpGet(`http://${peerIP}:${HTTP_PORT}/data`);
-  _db.mergeFromPeer(peerData);
+  const changed = _db.mergeFromPeer(peerData);
   const localData = _db.getAllForSync();
   await httpPost(`http://${peerIP}:${HTTP_PORT}/merge`, localData);
+  return changed;
 }
 
 module.exports = { startHttpServer, startDiscoveryListener, discoverPeers, syncWithPeer };

@@ -19,4 +19,5 @@ contextBridge.exposeInMainWorld('api', {
   setHoliday: (date, name) => ipcRenderer.invoke('holidays:set', date, name),
   removeHoliday: (date) => ipcRenderer.invoke('holidays:remove', date),
   sync: () => ipcRenderer.invoke('sync:start'),
+  onSyncDone: (cb) => ipcRenderer.on('sync:auto', (_, data) => cb(data)),
 });
