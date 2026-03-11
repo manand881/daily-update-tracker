@@ -9,6 +9,7 @@ const db = new Database(dbPath);
 // Migrate existing databases
 try { db.exec(`ALTER TABLE updates ADD COLUMN impediments TEXT DEFAULT ''`); } catch (_) {}
 try { db.exec(`ALTER TABLE updates ADD COLUMN updated_at TEXT`); } catch (_) {}
+try { db.exec(`ALTER TABLE updates ADD COLUMN ticket_link TEXT DEFAULT ''`); } catch (_) {}
 
 // Sync migrations: add sync_id to all tables
 try { db.exec(`ALTER TABLE updates ADD COLUMN sync_id TEXT`); } catch (_) {}
@@ -86,17 +87,17 @@ module.exports = {
     return db.prepare('SELECT DISTINCT date FROM updates').all().map(r => r.date);
   },
 
-  createUpdate({ date, what, repos = '', why = '', impact = '', who = '', impediments = '' }) {
+  createUpdate({ date, what, repos = '', why = '', impact = '', who = '', impediments = '', ticket_link = '' }) {
     const result = db.prepare(`
-      INSERT INTO updates (sync_id, date, what, repos, why, impact, who, impediments) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(randomUUID(), date, what, repos, why, impact, who, impediments);
+      INSERT INTO updates (sync_id, date, what, repos, why, impact, who, impediments, ticket_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(randomUUID(), date, what, repos, why, impact, who, impediments, ticket_link);
     return db.prepare('SELECT * FROM updates WHERE id = ?').get(result.lastInsertRowid);
   },
 
-  editUpdate(id, { what, repos = '', why = '', impact = '', who = '', impediments = '' }) {
+  editUpdate(id, { what, repos = '', why = '', impact = '', who = '', impediments = '', ticket_link = '' }) {
     db.prepare(`
-      UPDATE updates SET what = ?, repos = ?, why = ?, impact = ?, who = ?, impediments = ?, updated_at = datetime('now') WHERE id = ?
-    `).run(what, repos, why, impact, who, impediments, id);
+      UPDATE updates SET what = ?, repos = ?, why = ?, impact = ?, who = ?, impediments = ?, ticket_link = ?, updated_at = datetime('now') WHERE id = ?
+    `).run(what, repos, why, impact, who, impediments, ticket_link, id);
     return db.prepare('SELECT * FROM updates WHERE id = ?').get(id);
   },
 
@@ -165,8 +166,8 @@ module.exports = {
   mergeFromPeer({ updates = [], people = [], repos = [], holidays = [] }) {
     const mergeUpdates = db.transaction(() => {
       const stmt = db.prepare(`
-        INSERT INTO updates (sync_id, date, what, repos, why, impact, who, impediments, created_at, updated_at)
-        VALUES (@sync_id, @date, @what, @repos, @why, @impact, @who, @impediments, @created_at, @updated_at)
+        INSERT INTO updates (sync_id, date, what, repos, why, impact, who, impediments, ticket_link, created_at, updated_at)
+        VALUES (@sync_id, @date, @what, @repos, @why, @impact, @who, @impediments, @ticket_link, @created_at, @updated_at)
         ON CONFLICT(sync_id) DO UPDATE SET
           date        = excluded.date,
           what        = excluded.what,
@@ -175,6 +176,7 @@ module.exports = {
           impact      = excluded.impact,
           who         = excluded.who,
           impediments = excluded.impediments,
+          ticket_link = excluded.ticket_link,
           updated_at  = excluded.updated_at
         WHERE COALESCE(excluded.updated_at, excluded.created_at) >
               COALESCE(updates.updated_at,  updates.created_at)
