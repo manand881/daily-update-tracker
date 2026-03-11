@@ -100,6 +100,53 @@ module.exports = {
     return db.prepare('SELECT DISTINCT date FROM updates').all().map(r => r.date);
   },
 
+  searchUpdates({ keyword = '', people = [], repos = [] }) {
+    const conditions = [];
+    const params = [];
+
+    if (keyword.trim()) {
+      const kw = `%${keyword.trim()}%`;
+      conditions.push('(what LIKE ? OR why LIKE ? OR impact LIKE ? OR impediments LIKE ? OR ticket_link LIKE ?)');
+      params.push(kw, kw, kw, kw, kw);
+    }
+    for (const name of people) {
+      conditions.push('who LIKE ?');
+      params.push(`%${name}%`);
+    }
+    for (const name of repos) {
+      conditions.push('repos LIKE ?');
+      params.push(`%${name}%`);
+    }
+
+    if (!conditions.length) return { dates: [], total: 0 };
+
+    const where = conditions.join(' AND ');
+    const dates = db.prepare(`SELECT DISTINCT date FROM updates WHERE ${where} ORDER BY date ASC`).all(...params).map(r => r.date);
+    const { total } = db.prepare(`SELECT COUNT(*) as total FROM updates WHERE ${where}`).get(...params);
+    return { dates, total };
+  },
+
+  searchByDate(date, { keyword = '', people = [], repos = [] }) {
+    const conditions = ['date = ?'];
+    const params = [date];
+
+    if (keyword.trim()) {
+      const kw = `%${keyword.trim()}%`;
+      conditions.push('(what LIKE ? OR why LIKE ? OR impact LIKE ? OR impediments LIKE ? OR ticket_link LIKE ?)');
+      params.push(kw, kw, kw, kw, kw);
+    }
+    for (const name of people) {
+      conditions.push('who LIKE ?');
+      params.push(`%${name}%`);
+    }
+    for (const name of repos) {
+      conditions.push('repos LIKE ?');
+      params.push(`%${name}%`);
+    }
+
+    return db.prepare(`SELECT * FROM updates WHERE ${conditions.join(' AND ')} ORDER BY created_at ASC`).all(...params);
+  },
+
   createUpdate({ date, what, repos = '', why = '', impact = '', who = '', impediments = '', ticket_link = '' }) {
     const result = db.prepare(`
       INSERT INTO updates (sync_id, date, what, repos, why, impact, who, impediments, ticket_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

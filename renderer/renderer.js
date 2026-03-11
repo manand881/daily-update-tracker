@@ -9,6 +9,11 @@ let knownPeople = [];          // people loaded from DB
 let selectedPeople = [];       // names currently tagged in who field
 let knownRepos = [];           // repos loaded from DB
 let selectedRepos = [];        // repos currently tagged in repos field
+let searchActive = false;      // whether search/filter is active
+let searchMatchDates = new Set(); // dates matching current search
+let searchFilterPeople = [];   // people filter pills
+let searchFilterRepos = [];    // repo filter pills
+let searchDebounceTimer = null;
 
 // ── DOM refs ───────────────────────────────────────────
 const calDays       = document.getElementById('cal-days');
@@ -63,6 +68,14 @@ const fCopyEnd          = document.getElementById('f-copy-end');
 const btnCopySave       = document.getElementById('btn-copy-save');
 const btnCopyCancel     = document.getElementById('btn-copy-cancel');
 let copySourceUpdate    = null; // the update being copied
+const searchInput           = document.getElementById('search-input');
+const searchCount           = document.getElementById('search-count');
+const searchClear           = document.getElementById('search-clear');
+const searchFilterTagsEl    = document.getElementById('search-filter-tags');
+const searchPeopleBtn       = document.getElementById('search-filter-people-btn');
+const searchReposBtn        = document.getElementById('search-filter-repos-btn');
+const searchPeopleDropdown  = document.getElementById('search-people-dropdown');
+const searchReposDropdown   = document.getElementById('search-repos-dropdown');
 const btnSync           = document.getElementById('btn-sync');
 const syncPeerCount     = document.getElementById('sync-peer-count');
 const btnSettings       = document.getElementById('btn-settings');
@@ -200,6 +213,10 @@ function dayCell(dayNum, dateStr, otherMonth, isToday = false) {
   if (isToday) classes.push('today');
   if (dateStr === selectedDate) classes.push('selected');
   if (holidayDates.has(dateStr)) classes.push('holiday');
+
+  const isDisabled = searchActive && !otherMonth && !searchMatchDates.has(dateStr);
+  if (isDisabled) classes.push('search-disabled');
+
   cell.className = classes.join(' ');
   cell.dataset.date = dateStr;
 
@@ -211,7 +228,9 @@ function dayCell(dayNum, dateStr, otherMonth, isToday = false) {
     cell.appendChild(dot);
   }
 
-  cell.addEventListener('click', () => selectDate(dateStr));
+  if (!isDisabled) {
+    cell.addEventListener('click', () => selectDate(dateStr));
+  }
   return cell;
 }
 
@@ -228,7 +247,9 @@ async function selectDate(dateStr) {
   renderCalendar(viewYear, viewMonth);
 
   const [updates, holiday] = await Promise.all([
-    window.api.getByDate(dateStr),
+    searchActive
+      ? window.api.searchByDate(dateStr, { keyword: searchInput.value.trim(), people: searchFilterPeople, repos: searchFilterRepos })
+      : window.api.getByDate(dateStr),
     window.api.getHoliday(dateStr),
   ]);
 
@@ -694,7 +715,7 @@ async function autoSaveComposer() {
     editingId = created.id;
     const dates = await window.api.getDatesWithUpdates();
     activeDates = new Set(dates);
-    renderCalendar(viewYear, viewMonth);
+    if (!searchActive) renderCalendar(viewYear, viewMonth);
   }
 
   autoSaveStatus.textContent = 'Autosaved';
@@ -733,14 +754,185 @@ async function deleteUpdate(id) {
 }
 
 async function refreshDay() {
-  const [dates, updates] = await Promise.all([
-    window.api.getDatesWithUpdates(),
-    window.api.getByDate(selectedDate),
-  ]);
+  const dates = await window.api.getDatesWithUpdates();
   activeDates = new Set(dates);
-  renderCalendar(viewYear, viewMonth);
-  renderUpdates(updates);
+  if (searchActive) {
+    await runSearch();
+  } else {
+    const updates = await window.api.getByDate(selectedDate);
+    renderCalendar(viewYear, viewMonth);
+    renderUpdates(updates);
+  }
 }
+
+// ── Search ─────────────────────────────────────────────
+function getSearchFilters() {
+  return { keyword: searchInput.value.trim(), people: searchFilterPeople, repos: searchFilterRepos };
+}
+
+async function runSearch() {
+  const { keyword, people, repos } = getSearchFilters();
+  if (!keyword && !people.length && !repos.length) {
+    clearSearch();
+    return;
+  }
+
+  const result = await window.api.search({ keyword, people, repos });
+  searchActive = true;
+  searchMatchDates = new Set(result.dates);
+
+  const d = result.dates.length;
+  const t = result.total;
+  searchCount.textContent = `${t} result${t !== 1 ? 's' : ''} across ${d} day${d !== 1 ? 's' : ''}`;
+  searchCount.style.display = '';
+  searchClear.style.display = '';
+
+  renderCalendar(viewYear, viewMonth);
+
+  if (searchMatchDates.has(selectedDate)) {
+    const updates = await window.api.searchByDate(selectedDate, { keyword, people, repos });
+    renderUpdates(updates);
+  } else {
+    updatesList.innerHTML = `<div class="empty-state">No results on this day.<br>Select a highlighted date to see matching updates.</div>`;
+    btnAddUpdate.style.display = 'none';
+    btnEditUpdate.style.display = 'none';
+    btnCopyRange.style.display = 'none';
+    btnDeleteUpdate.style.display = 'none';
+  }
+}
+
+function clearSearch() {
+  searchActive = false;
+  searchMatchDates = new Set();
+  searchFilterPeople = [];
+  searchFilterRepos = [];
+  searchInput.value = '';
+  searchCount.style.display = 'none';
+  searchClear.style.display = 'none';
+  renderSearchFilterTags();
+  renderCalendar(viewYear, viewMonth);
+  selectDate(selectedDate);
+}
+
+function renderSearchFilterTags() {
+  searchFilterTagsEl.innerHTML = '';
+
+  searchFilterPeople.forEach(name => {
+    const tag = document.createElement('span');
+    tag.className = 'search-filter-tag search-filter-tag--people';
+    tag.innerHTML = `${escapeHtml(name)}<button class="search-filter-tag-remove" type="button">&#x2715;</button>`;
+    tag.querySelector('.search-filter-tag-remove').addEventListener('click', () => {
+      searchFilterPeople = searchFilterPeople.filter(n => n !== name);
+      renderSearchFilterTags();
+      runSearch();
+    });
+    searchFilterTagsEl.appendChild(tag);
+  });
+
+  searchFilterRepos.forEach(name => {
+    const tag = document.createElement('span');
+    tag.className = 'search-filter-tag search-filter-tag--repo';
+    tag.innerHTML = `${escapeHtml(name)}<button class="search-filter-tag-remove" type="button">&#x2715;</button>`;
+    tag.querySelector('.search-filter-tag-remove').addEventListener('click', () => {
+      searchFilterRepos = searchFilterRepos.filter(n => n !== name);
+      renderSearchFilterTags();
+      runSearch();
+    });
+    searchFilterTagsEl.appendChild(tag);
+  });
+
+  searchPeopleBtn.classList.toggle('active', searchFilterPeople.length > 0);
+  searchReposBtn.classList.toggle('active', searchFilterRepos.length > 0);
+}
+
+function renderSearchPeopleDropdown() {
+  searchPeopleDropdown.innerHTML = '';
+  if (!knownPeople.length) {
+    searchPeopleDropdown.innerHTML = '<div class="search-filter-dropdown-empty">No people added yet</div>';
+    return;
+  }
+  knownPeople.forEach(p => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const selected = searchFilterPeople.includes(p.name);
+    btn.className = 'search-filter-dropdown-item' + (selected ? ' selected' : '');
+    btn.textContent = (selected ? '✓  ' : '    ') + p.name;
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      if (searchFilterPeople.includes(p.name)) {
+        searchFilterPeople = searchFilterPeople.filter(n => n !== p.name);
+      } else {
+        searchFilterPeople.push(p.name);
+      }
+      renderSearchFilterTags();
+      renderSearchPeopleDropdown();
+      runSearch();
+    });
+    searchPeopleDropdown.appendChild(btn);
+  });
+}
+
+function renderSearchReposDropdown() {
+  searchReposDropdown.innerHTML = '';
+  if (!knownRepos.length) {
+    searchReposDropdown.innerHTML = '<div class="search-filter-dropdown-empty">No projects added yet</div>';
+    return;
+  }
+  knownRepos.forEach(r => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const selected = searchFilterRepos.includes(r.name);
+    btn.className = 'search-filter-dropdown-item' + (selected ? ' selected' : '');
+    btn.textContent = (selected ? '✓  ' : '    ') + r.name;
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      if (searchFilterRepos.includes(r.name)) {
+        searchFilterRepos = searchFilterRepos.filter(n => n !== r.name);
+      } else {
+        searchFilterRepos.push(r.name);
+      }
+      renderSearchFilterTags();
+      renderSearchReposDropdown();
+      runSearch();
+    });
+    searchReposDropdown.appendChild(btn);
+  });
+}
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(runSearch, 300);
+});
+
+searchClear.addEventListener('click', () => {
+  searchPeopleDropdown.style.display = 'none';
+  searchReposDropdown.style.display = 'none';
+  clearSearch();
+});
+
+searchPeopleBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isOpen = searchPeopleDropdown.style.display !== 'none';
+  searchReposDropdown.style.display = 'none';
+  if (isOpen) {
+    searchPeopleDropdown.style.display = 'none';
+  } else {
+    renderSearchPeopleDropdown();
+    searchPeopleDropdown.style.display = '';
+  }
+});
+
+searchReposBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isOpen = searchReposDropdown.style.display !== 'none';
+  searchPeopleDropdown.style.display = 'none';
+  if (isOpen) {
+    searchReposDropdown.style.display = 'none';
+  } else {
+    renderSearchReposDropdown();
+    searchReposDropdown.style.display = '';
+  }
+});
 
 // ── Events ─────────────────────────────────────────────
 btnPrev.addEventListener('click', () => {
@@ -801,6 +993,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     hideComposer();
     settingsDropdown.style.display = 'none';
+    searchPeopleDropdown.style.display = 'none';
+    searchReposDropdown.style.display = 'none';
   }
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') saveComposer();
 });
@@ -870,12 +1064,16 @@ btnSettings.addEventListener('click', (e) => {
   settingsDropdown.style.display = isOpen ? 'none' : '';
 });
 
-document.addEventListener('click', () => {
+document.addEventListener('click', (e) => {
   settingsDropdown.style.display = 'none';
   peopleSubmenu.style.display = 'none';
   btnPeopleSubmenu.querySelector('.submenu-chevron').classList.remove('open');
   projectsSubmenu.style.display = 'none';
   btnProjectsSubmenu.querySelector('.submenu-chevron').classList.remove('open');
+  if (!e.target.closest('.search-filter-btn-wrap')) {
+    searchPeopleDropdown.style.display = 'none';
+    searchReposDropdown.style.display = 'none';
+  }
 });
 
 btnExportJson.addEventListener('click', async () => {
