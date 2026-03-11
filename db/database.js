@@ -164,57 +164,74 @@ module.exports = {
   },
 
   mergeFromPeer({ updates = [], people = [], repos = [], holidays = [] }) {
+    let changed = 0;
+
     const mergeUpdates = db.transaction(() => {
-      const stmt = db.prepare(`
+      const find   = db.prepare('SELECT updated_at, created_at FROM updates WHERE sync_id = ?');
+      const insert = db.prepare(`
         INSERT INTO updates (sync_id, date, what, repos, why, impact, who, impediments, ticket_link, created_at, updated_at)
         VALUES (@sync_id, @date, @what, @repos, @why, @impact, @who, @impediments, @ticket_link, @created_at, @updated_at)
-        ON CONFLICT(sync_id) DO UPDATE SET
-          date        = excluded.date,
-          what        = excluded.what,
-          repos       = excluded.repos,
-          why         = excluded.why,
-          impact      = excluded.impact,
-          who         = excluded.who,
-          impediments = excluded.impediments,
-          ticket_link = excluded.ticket_link,
-          updated_at  = excluded.updated_at
-        WHERE COALESCE(excluded.updated_at, excluded.created_at) >
-              COALESCE(updates.updated_at,  updates.created_at)
       `);
-      for (const u of updates) if (u.sync_id) stmt.run(u);
+      const update = db.prepare(`
+        UPDATE updates SET date=@date, what=@what, repos=@repos, why=@why, impact=@impact,
+          who=@who, impediments=@impediments, ticket_link=@ticket_link, updated_at=@updated_at
+        WHERE sync_id=@sync_id
+      `);
+      for (const u of updates) {
+        if (!u.sync_id) continue;
+        const existing = find.get(u.sync_id);
+        if (!existing) {
+          insert.run(u); changed++;
+        } else {
+          const existingTs = existing.updated_at || existing.created_at;
+          const incomingTs = u.updated_at || u.created_at;
+          if (incomingTs > existingTs) { update.run(u); changed++; }
+        }
+      }
     });
 
     const mergePeople = db.transaction(() => {
-      const stmt = db.prepare(`
-        INSERT INTO people (sync_id, name, created_at)
-        VALUES (@sync_id, @name, @created_at)
-        ON CONFLICT(sync_id) DO UPDATE SET name = excluded.name
-        WHERE excluded.created_at > people.created_at
-      `);
-      for (const p of people) if (p.sync_id) stmt.run(p);
+      const find   = db.prepare('SELECT created_at FROM people WHERE sync_id = ?');
+      const insert = db.prepare('INSERT OR IGNORE INTO people (sync_id, name, created_at) VALUES (@sync_id, @name, @created_at)');
+      const update = db.prepare('UPDATE people SET name=@name WHERE sync_id=@sync_id');
+      for (const p of people) {
+        if (!p.sync_id) continue;
+        const existing = find.get(p.sync_id);
+        if (!existing) {
+          insert.run(p); changed++;
+        } else if (p.created_at > existing.created_at) {
+          update.run(p); changed++;
+        }
+      }
     });
 
     const mergeRepos = db.transaction(() => {
-      const stmt = db.prepare(`
-        INSERT OR IGNORE INTO repos (sync_id, name, created_at)
-        VALUES (@sync_id, @name, @created_at)
-      `);
-      for (const r of repos) if (r.sync_id) stmt.run(r);
+      const insert = db.prepare('INSERT OR IGNORE INTO repos (sync_id, name, created_at) VALUES (@sync_id, @name, @created_at)');
+      for (const r of repos) {
+        if (!r.sync_id) continue;
+        const { changes } = insert.run(r);
+        changed += changes;
+      }
     });
 
     const mergeHolidays = db.transaction(() => {
-      const stmt = db.prepare(`
-        INSERT INTO holidays (sync_id, date, name)
-        VALUES (@sync_id, @date, @name)
-        ON CONFLICT(date) DO UPDATE SET name = excluded.name, sync_id = excluded.sync_id
-      `);
-      for (const h of holidays) if (h.sync_id) stmt.run(h);
+      const find   = db.prepare('SELECT sync_id FROM holidays WHERE date = ?');
+      const insert = db.prepare('INSERT OR IGNORE INTO holidays (sync_id, date, name) VALUES (@sync_id, @date, @name)');
+      const update = db.prepare('UPDATE holidays SET name=@name, sync_id=@sync_id WHERE date=@date');
+      for (const h of holidays) {
+        if (!h.sync_id) continue;
+        const existing = find.get(h.date);
+        if (!existing) { insert.run(h); changed++; }
+        else update.run(h);
+      }
     });
 
     mergeUpdates();
     mergePeople();
     mergeRepos();
     mergeHolidays();
+
+    return changed;
   },
 
   removeHoliday(date) {

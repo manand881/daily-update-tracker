@@ -64,6 +64,7 @@ const btnCopySave       = document.getElementById('btn-copy-save');
 const btnCopyCancel     = document.getElementById('btn-copy-cancel');
 let copySourceUpdate    = null; // the update being copied
 const btnSync           = document.getElementById('btn-sync');
+const syncPeerCount     = document.getElementById('sync-peer-count');
 const btnSettings       = document.getElementById('btn-settings');
 const settingsDropdown  = document.getElementById('settings-dropdown');
 const btnExportJson     = document.getElementById('btn-export-json');
@@ -809,6 +810,15 @@ function showToast(message, type = 'info') {
 }
 
 // ── Sync ────────────────────────────────────────────────
+function updatePeerBadge(count) {
+  if (count > 0) {
+    syncPeerCount.textContent = count;
+    syncPeerCount.style.display = '';
+  } else {
+    syncPeerCount.style.display = 'none';
+  }
+}
+
 btnSync.addEventListener('click', async () => {
   if (btnSync.classList.contains('syncing')) return;
   btnSync.classList.add('syncing');
@@ -837,8 +847,11 @@ btnSync.addEventListener('click', async () => {
   renderCalendar(viewYear, viewMonth);
   await selectDate(selectedDate);
 
-  const label = result.count === 1 ? '1 peer' : `${result.count} peers`;
-  showToast(`Synced with ${label}`, 'success');
+  updatePeerBadge(result.count);
+  if (result.changed > 0) {
+    const label = result.count === 1 ? '1 peer' : `${result.count} peers`;
+    showToast(`Synced with ${label}`, 'success');
+  }
 });
 
 // ── Settings dropdown ───────────────────────────────────
@@ -887,4 +900,24 @@ btnPeopleSubmenu.addEventListener('click', (e) => {
   const now = new Date();
   renderCalendar(now.getFullYear(), now.getMonth());
   await selectDate(todayStr());
+
+  window.api.onSyncDone(async ({ count, changed }) => {
+    updatePeerBadge(count);
+    if (changed > 0) {
+      const label = count === 1 ? '1 peer' : `${count} peers`;
+      showToast(`Synced with ${label}`, 'success');
+    }
+    const [dates, hDates, people, repos] = await Promise.all([
+      window.api.getDatesWithUpdates(),
+      window.api.getAllHolidayDates(),
+      window.api.getAllPeople(),
+      window.api.getAllRepos(),
+    ]);
+    activeDates = new Set(dates);
+    holidayDates = new Set(hDates);
+    knownPeople = people;
+    knownRepos = repos;
+    renderCalendar(viewYear, viewMonth);
+    await selectDate(selectedDate);
+  });
 })();
