@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('api', {
   getAll: () => ipcRenderer.invoke('updates:getAll'),
   getByDate: (date) => ipcRenderer.invoke('updates:getByDate', date),
   getDatesWithUpdates: () => ipcRenderer.invoke('updates:getDatesWithUpdates'),
+  search: (filters) => ipcRenderer.invoke('updates:search', filters),
+  searchByDate: (date, filters) => ipcRenderer.invoke('updates:searchByDate', date, filters),
   create: (update) => ipcRenderer.invoke('updates:create', update),
   edit: (id, fields) => ipcRenderer.invoke('updates:edit', id, fields),
   delete: (id) => ipcRenderer.invoke('updates:delete', id),

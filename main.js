@@ -58,6 +58,8 @@ ipcMain.handle('updates:getDatesWithUpdates', () => db.getDatesWithUpdates());
 ipcMain.handle('updates:create', (_, update) => db.createUpdate(update));
 ipcMain.handle('updates:edit', (_, id, fields) => db.editUpdate(id, fields));
 ipcMain.handle('updates:delete', (_, id) => db.deleteUpdate(id));
+ipcMain.handle('updates:search', (_, filters) => db.searchUpdates(filters));
+ipcMain.handle('updates:searchByDate', (_, date, filters) => db.searchByDate(date, filters));
 
 ipcMain.handle('export:json', async () => {
   const { filePath, canceled } = await dialog.showSaveDialog({
