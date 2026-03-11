@@ -6,6 +6,7 @@ files:
   - preload.js
   - renderer/**
   - db/**
+  - build/**
   - node_modules/**
   - package.json
 
@@ -13,12 +14,14 @@ files:
 mac:
   identity: null
   category: public.app-category.productivity
+  icon: build/icon.icns
   target:
     - target: dmg
       arch: arm64
 
 linux:
   category: Utility
+  icon: build/icons
   target:
     - target: deb
       arch: x64

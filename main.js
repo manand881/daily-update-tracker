@@ -12,6 +12,7 @@ function createWindow() {
     minHeight: 600,
     titleBarStyle: 'hiddenInset',
     fullscreen: true,
+    icon: path.join(__dirname, 'build', process.platform === 'darwin' ? 'icon.icns' : 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
