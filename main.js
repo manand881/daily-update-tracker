@@ -29,6 +29,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  db.cleanupTombstones(30);
   sync.startHttpServer(db);
   sync.startDiscoveryListener();
 

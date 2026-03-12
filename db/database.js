@@ -352,4 +352,12 @@ module.exports = {
   touchAllUpdatedAt() {
     db.prepare(`UPDATE updates SET updated_at = datetime('now')`).run();
   },
+
+  // Delete tombstones older than `days` days. Safe to call on startup.
+  cleanupTombstones(days = 30) {
+    const { changes } = db.prepare(
+      `DELETE FROM deleted_records WHERE deleted_at < datetime('now', ?)`
+    ).run(`-${days} days`);
+    return changes;
+  },
 };
