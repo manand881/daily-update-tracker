@@ -417,10 +417,10 @@ function createCard(u) {
   const fields = [
     { key: 'what',        label: 'What I did today',      value: u.what,        raw: true },
     { key: 'repos',       label: 'Repos / projects',      value: u.repos        },
-    { key: 'why',         label: 'Why',                   value: u.why          },
-    { key: 'impact',      label: 'Impact',                value: u.impact       },
+    { key: 'why',         label: 'Why',                   value: u.why,         raw: true },
+    { key: 'impact',      label: 'Impact',                value: u.impact,      raw: true },
     { key: 'who',         label: 'Who I worked with',     value: u.who          },
-    { key: 'impediments', label: 'Impediments',           value: u.impediments  },
+    { key: 'impediments', label: 'Impediments',           value: u.impediments, raw: true },
     { key: 'ticket_link', label: 'Ticket',                value: u.ticket_link  },
   ].filter(f => f.value && f.value.trim());
 
@@ -673,10 +673,10 @@ function openComposerForEdit(u) {
   editingId = u.id;
   fWhat.innerHTML    = u.what        || '';
   setReposValue(u.repos || '');
-  fWhy.value         = u.why         || '';
-  fImpact.value      = u.impact      || '';
+  fWhy.innerHTML     = u.why         || '';
+  fImpact.innerHTML  = u.impact      || '';
   setWhoValue(u.who  || '');
-  fImpediments.value = u.impediments || '';
+  fImpediments.innerHTML = u.impediments || '';
   fTicketLink.value  = u.ticket_link || '';
   updatesList.style.display = 'none';
   composer.style.display = '';
@@ -698,7 +698,8 @@ function hideComposer() {
 
 function clearComposer() {
   fWhat.innerHTML = '';
-  fWhy.value = fImpact.value = fImpediments.value = fTicketLink.value = '';
+  fWhy.innerHTML = fImpact.innerHTML = fImpediments.innerHTML = '';
+  fTicketLink.value = '';
   clearRepos();
   clearWho();
 }
@@ -716,10 +717,10 @@ async function autoSaveComposer() {
       date:        selectedDate,
       what:        fWhat.innerHTML.trim(),
       repos:       getReposValue(),
-      why:         fWhy.value.trim(),
-      impact:      fImpact.value.trim(),
+      why:         fWhy.innerHTML.trim(),
+      impact:      fImpact.innerHTML.trim(),
       who:         getWhoValue(),
-      impediments: fImpediments.value.trim(),
+      impediments: fImpediments.innerHTML.trim(),
       ticket_link: fTicketLink.value.trim(),
     };
     if (editingId) {
@@ -758,10 +759,10 @@ async function saveComposer() {
     date:        selectedDate,
     what:        fWhat.innerHTML.trim(),
     repos:       getReposValue(),
-    why:         fWhy.value.trim(),
-    impact:      fImpact.value.trim(),
+    why:         fWhy.innerHTML.trim(),
+    impact:      fImpact.innerHTML.trim(),
     who:         getWhoValue(),
-    impediments: fImpediments.value.trim(),
+    impediments: fImpediments.innerHTML.trim(),
     ticket_link: fTicketLink.value.trim(),
   };
 
@@ -1077,8 +1078,10 @@ fmtBtns.forEach(btn => {
   });
 });
 
-fWhat.addEventListener('keyup', updateFmtButtons);
-fWhat.addEventListener('mouseup', updateFmtButtons);
+[fWhat, fWhy, fImpact, fImpediments].forEach(el => {
+  el.addEventListener('keyup', updateFmtButtons);
+  el.addEventListener('mouseup', updateFmtButtons);
+});
 
 // ── Autosave triggers ──────────────────────────────────
 fWhat.addEventListener('input', scheduleAutoSave);
