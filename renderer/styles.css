@@ -10,15 +10,24 @@
   --alabaster-grey: #cdd7d6;
   --khaki-beige: #b3a394;
   --white: #ffffff;
-
   --warm-amber: #d99152;
+  --holiday-amber: #ffc457;
+  --mint-green: #7dd898;
+
+  /* RGB components for rgba() usage */
+  --vibrant-coral-rgb: 248, 112, 96;
+  --khaki-beige-rgb: 179, 163, 148;
+  --holiday-amber-rgb: 255, 196, 87;
+  --repo-blue-rgb: 100, 180, 220;
+  --mint-green-rgb: 125, 216, 152;
 
   /* Derived */
+  --repo-blue: rgb(var(--repo-blue-rgb));
   --prussian-blue-light: #1a3a5c;
   --prussian-blue-dark: #0b1a2e;
   --coral-hover: #e8604f;
-  --border: rgba(179, 163, 148, 0.25);
-  --border-strong: rgba(179, 163, 148, 0.45);
+  --border: rgba(var(--khaki-beige-rgb), 0.25);
+  --border-strong: rgba(var(--khaki-beige-rgb), 0.45);
 }
 
 html {
@@ -74,6 +83,9 @@ body {
   top: 50%;
   transform: translateY(-50%);
   -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .title-bar-icon-btn {
@@ -207,7 +219,7 @@ body {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   user-select: none;
 }
 
@@ -234,10 +246,105 @@ body {
   background: var(--prussian-blue-light);
 }
 
+.cal-label-wrap {
+  position: relative;
+}
+
 #cal-month-label {
   font-size: 12px;
   font-weight: 500;
   color: var(--khaki-beige);
+  cursor: pointer;
+  user-select: none;
+}
+#cal-month-label:hover {
+  color: var(--white);
+}
+#cal-month-label::after {
+  content: ' ▾';
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.cal-month-picker button {
+  font-size: 12px;
+}
+.cal-month-picker {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--prussian-blue-light);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 10px;
+  z-index: 200;
+  min-width: 190px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+}
+.cal-picker-today {
+  width: 100%;
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  color: var(--vibrant-coral);
+  font-size: 12px;
+  padding: 5px 0;
+  cursor: pointer;
+  margin-bottom: 10px;
+  letter-spacing: 0.03em;
+}
+.cal-picker-today:hover {
+  background: var(--prussian-blue);
+}
+.cal-picker-year-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.cal-picker-year-row button {
+  background: none;
+  border: none;
+  color: var(--khaki-beige);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  border-radius: 3px;
+}
+.cal-picker-year-row button:hover {
+  color: var(--white);
+  background: var(--prussian-blue);
+}
+#cal-picker-year {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--white);
+}
+.cal-picker-months {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.cal-picker-month-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--alabaster-grey);
+  font-size: 12px;
+  padding: 5px 2px;
+  cursor: pointer;
+  text-align: center;
+}
+.cal-picker-month-btn:hover {
+  background: var(--prussian-blue);
+  color: var(--white);
+}
+.cal-picker-month-btn.active {
+  background: var(--vibrant-coral);
+  color: var(--white);
+  border-color: var(--vibrant-coral);
 }
 
 .cal-scroll {
@@ -275,7 +382,7 @@ body {
   font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
-  color: rgba(179, 163, 148, 0.5);
+  color: rgba(var(--khaki-beige-rgb), 0.5);
   letter-spacing: 0.04em;
   padding-bottom: 3px;
 }
@@ -302,11 +409,11 @@ body {
 
 .cal-day:hover { background: var(--prussian-blue-light); }
 
-.cal-day.other-month .day-num { color: rgba(179, 163, 148, 0.35); }
+.cal-day.other-month .day-num { color: rgba(var(--khaki-beige-rgb), 0.35); }
 
 .cal-day.today {
-  background: rgba(248, 112, 96, 0.12);
-  border: 1px solid rgba(248, 112, 96, 0.45);
+  background: rgba(var(--vibrant-coral-rgb), 0.12);
+  border: 1px solid rgba(var(--vibrant-coral-rgb), 0.45);
 }
 
 .cal-day.selected {
@@ -333,13 +440,13 @@ body {
 .cal-day.selected .day-dot { background: rgba(255,255,255,0.75); }
 
 .cal-day.holiday {
-  background: rgba(255, 196, 87, 0.12);
-  border: 1px solid rgba(255, 196, 87, 0.4);
+  background: rgba(var(--holiday-amber-rgb), 0.12);
+  border: 1px solid rgba(var(--holiday-amber-rgb), 0.4);
 }
-.cal-day.holiday .day-num { color: #ffc457; }
+.cal-day.holiday .day-num { color: var(--holiday-amber); }
 .cal-day.holiday.selected {
-  background: #ffc457;
-  border-color: #ffc457;
+  background: var(--holiday-amber);
+  border-color: var(--holiday-amber);
 }
 .cal-day.holiday.selected .day-num { color: var(--prussian-blue-dark); }
 
@@ -349,14 +456,14 @@ body {
   flex-direction: column;
   gap: 10px;
   padding: 12px 28px 14px;
-  background: rgba(255, 196, 87, 0.06);
-  border-bottom: 1px solid rgba(255, 196, 87, 0.2);
+  background: rgba(var(--holiday-amber-rgb), 0.06);
+  border-bottom: 1px solid rgba(var(--holiday-amber-rgb), 0.2);
 }
 
 .holiday-composer input[type="text"],
 .holiday-composer input[type="date"] {
   background: var(--prussian-blue);
-  border: 1px solid rgba(255, 196, 87, 0.35);
+  border: 1px solid rgba(var(--holiday-amber-rgb), 0.35);
   border-radius: 7px;
   color: var(--white);
   font-size: 13px;
@@ -372,11 +479,11 @@ body {
 
 .holiday-composer input[type="text"]:focus,
 .holiday-composer input[type="date"]:focus {
-  border-color: #ffc457;
+  border-color: var(--holiday-amber);
 }
 
 .holiday-composer input[type="text"]::placeholder {
-  color: rgba(179, 163, 148, 0.45);
+  color: rgba(var(--khaki-beige-rgb), 0.45);
 }
 
 .holiday-composer-top {
@@ -391,7 +498,7 @@ body {
 
 .holiday-mode-toggle {
   display: flex;
-  border: 1px solid rgba(255, 196, 87, 0.3);
+  border: 1px solid rgba(var(--holiday-amber-rgb), 0.3);
   border-radius: 6px;
   overflow: hidden;
   flex-shrink: 0;
@@ -400,7 +507,7 @@ body {
 .mode-btn {
   background: none;
   border: none;
-  color: rgba(255, 196, 87, 0.55);
+  color: rgba(var(--holiday-amber-rgb), 0.55);
   font-size: 12px;
   font-family: inherit;
   padding: 6px 11px;
@@ -410,17 +517,17 @@ body {
 }
 
 .mode-btn + .mode-btn {
-  border-left: 1px solid rgba(255, 196, 87, 0.3);
+  border-left: 1px solid rgba(var(--holiday-amber-rgb), 0.3);
 }
 
 .mode-btn.active {
-  background: rgba(255, 196, 87, 0.15);
-  color: #ffc457;
+  background: rgba(var(--holiday-amber-rgb), 0.15);
+  color: var(--holiday-amber);
 }
 
 .mode-btn:hover:not(.active) {
-  background: rgba(255, 196, 87, 0.07);
-  color: rgba(255, 196, 87, 0.8);
+  background: rgba(var(--holiday-amber-rgb), 0.07);
+  color: rgba(var(--holiday-amber-rgb), 0.8);
 }
 
 .holiday-dates {
@@ -438,7 +545,7 @@ body {
 .holiday-date-field label {
   font-size: 11px;
   font-weight: 500;
-  color: rgba(255, 196, 87, 0.7);
+  color: rgba(var(--holiday-amber-rgb), 0.7);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -454,7 +561,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--sand);
+  color: var(--warm-amber);
   opacity: 0.7;
 }
 
@@ -494,7 +601,7 @@ body {
 }
 
 .search-input::placeholder {
-  color: rgba(179, 163, 148, 0.4);
+  color: rgba(var(--khaki-beige-rgb), 0.4);
 }
 
 /* ── Search filters ── */
@@ -516,15 +623,15 @@ body {
 }
 
 .search-filter-tag--people {
-  background: rgba(248, 112, 96, 0.15);
-  border: 1px solid rgba(248, 112, 96, 0.35);
+  background: rgba(var(--vibrant-coral-rgb), 0.15);
+  border: 1px solid rgba(var(--vibrant-coral-rgb), 0.35);
   color: var(--vibrant-coral);
 }
 
 .search-filter-tag--repo {
-  background: rgba(100, 180, 220, 0.12);
-  border: 1px solid rgba(100, 180, 220, 0.35);
-  color: rgb(100, 180, 220);
+  background: rgba(var(--repo-blue-rgb), 0.12);
+  border: 1px solid rgba(var(--repo-blue-rgb), 0.35);
+  color: var(--repo-blue);
 }
 
 .search-filter-tag-remove {
@@ -564,7 +671,7 @@ body {
 
 .search-filter-btn:hover,
 .search-filter-btn.active {
-  background: rgba(179, 163, 148, 0.12);
+  background: rgba(var(--khaki-beige-rgb), 0.12);
   color: var(--white);
   border-color: var(--border-strong);
 }
@@ -679,11 +786,35 @@ body {
   flex-shrink: 0;
 }
 
+.detail-date-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .detail-header h2 {
   font-size: 18px;
   font-weight: 600;
   color: var(--white);
   white-space: nowrap;
+  min-width: 240px;
+  text-align: center;
+}
+
+.detail-nav-btn {
+  background: none;
+  border: none;
+  color: var(--khaki-beige);
+  font-size: 22px;
+  line-height: 1;
+  padding: 0 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.detail-nav-btn:hover {
+  background: var(--prussian-blue-light);
+  color: var(--white);
 }
 
 /* Holiday badge */
@@ -691,8 +822,8 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 196, 87, 0.15);
-  border: 1px solid rgba(255, 196, 87, 0.4);
+  background: rgba(var(--holiday-amber-rgb), 0.15);
+  border: 1px solid rgba(var(--holiday-amber-rgb), 0.4);
   border-radius: 20px;
   padding: 3px 10px 3px 12px;
   white-space: nowrap;
@@ -701,25 +832,25 @@ body {
 #holiday-name-label {
   font-size: 12px;
   font-weight: 500;
-  color: #ffc457;
+  color: var(--holiday-amber);
 }
 
 .holiday-badge-remove {
   background: none;
   border: none;
-  color: rgba(255, 196, 87, 0.6);
+  color: rgba(var(--holiday-amber-rgb), 0.6);
   cursor: pointer;
   font-size: 12px;
   line-height: 1;
   padding: 0;
 }
-.holiday-badge-remove:hover { color: #ffc457; }
+.holiday-badge-remove:hover { color: var(--holiday-amber); }
 
 /* Mark as Holiday button */
 .btn-holiday {
   background: transparent;
-  color: rgba(255, 196, 87, 0.7);
-  border: 1px solid rgba(255, 196, 87, 0.3);
+  color: rgba(var(--holiday-amber-rgb), 0.7);
+  border: 1px solid rgba(var(--holiday-amber-rgb), 0.3);
   padding: 7px 14px;
   border-radius: 7px;
   font-size: 13px;
@@ -727,9 +858,9 @@ body {
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 .btn-holiday:hover {
-  background: rgba(255, 196, 87, 0.1);
-  color: #ffc457;
-  border-color: rgba(255, 196, 87, 0.6);
+  background: rgba(var(--holiday-amber-rgb), 0.1);
+  color: var(--holiday-amber);
+  border-color: rgba(var(--holiday-amber-rgb), 0.6);
 }
 
 #header-actions {
@@ -810,7 +941,7 @@ body {
   transition: background 0.1s, color 0.1s;
 }
 .btn-icon:hover { background: var(--prussian-blue); color: var(--alabaster-grey); }
-.btn-icon.danger:hover { background: rgba(248, 112, 96, 0.15); color: var(--vibrant-coral); }
+.btn-icon.danger:hover { background: rgba(var(--vibrant-coral-rgb), 0.15); color: var(--vibrant-coral); }
 
 .card-fields {
   display: flex;
@@ -835,7 +966,6 @@ body {
   white-space: pre-wrap;
   word-break: break-word;
 }
-/* kept for backwards compat; new cards use .card-field-body */
 
 /* ── Composer ── */
 .composer {
@@ -889,7 +1019,7 @@ body {
 
 .field textarea::placeholder,
 .field input[type="text"]::placeholder {
-  color: rgba(179, 163, 148, 0.45);
+  color: rgba(var(--khaki-beige-rgb), 0.45);
 }
 
 .field textarea:focus,
@@ -1008,7 +1138,7 @@ body {
 
 .rich-editor:empty::before {
   content: attr(data-placeholder);
-  color: rgba(179, 163, 148, 0.45);
+  color: rgba(var(--khaki-beige-rgb), 0.45);
   pointer-events: none;
 }
 
@@ -1062,6 +1192,10 @@ body {
   border-color: var(--vibrant-coral);
 }
 
+.who-tags {
+  display: contents;
+}
+
 .who-input {
   flex: 1;
   min-width: 100px;
@@ -1075,15 +1209,15 @@ body {
 }
 
 .who-input::placeholder {
-  color: rgba(179, 163, 148, 0.45);
+  color: rgba(var(--khaki-beige-rgb), 0.45);
 }
 
 .who-tag {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: rgba(248, 112, 96, 0.15);
-  border: 1px solid rgba(248, 112, 96, 0.35);
+  background: rgba(var(--vibrant-coral-rgb), 0.15);
+  border: 1px solid rgba(var(--vibrant-coral-rgb), 0.35);
   border-radius: 20px;
   padding: 3px 8px 3px 10px;
   margin: 2px;
@@ -1095,7 +1229,7 @@ body {
 .who-tag-remove {
   background: none;
   border: none;
-  color: rgba(248, 112, 96, 0.55);
+  color: rgba(var(--vibrant-coral-rgb), 0.55);
   cursor: pointer;
   font-size: 11px;
   line-height: 1;
@@ -1104,15 +1238,15 @@ body {
 .who-tag-remove:hover { color: var(--vibrant-coral); }
 
 .repo-tag {
-  background: rgba(100, 180, 220, 0.12);
-  border-color: rgba(100, 180, 220, 0.35);
+  background: rgba(var(--repo-blue-rgb), 0.12);
+  border-color: rgba(var(--repo-blue-rgb), 0.35);
 }
 
 .repo-tag .who-tag-remove {
-  color: rgba(100, 180, 220, 0.55);
+  color: rgba(var(--repo-blue-rgb), 0.55);
 }
 .repo-tag .who-tag-remove:hover {
-  color: rgb(100, 180, 220);
+  color: var(--repo-blue);
 }
 
 .people-dropdown {
@@ -1153,13 +1287,6 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--khaki-beige); opacity: 0.4; border-radius: 3px; }
 
-/* ── Title bar actions layout ── */
-.title-bar-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 /* ── Sync wrapper + peer count badge ── */
 .sync-wrapper {
   display: flex;
@@ -1172,8 +1299,8 @@ body {
   height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: #f87060;
-  color: #fff;
+  background: var(--vibrant-coral);
+  color: var(--white);
   font-size: 10px;
   font-weight: 700;
   line-height: 16px;
@@ -1212,5 +1339,5 @@ body {
   opacity: 1;
   transform: translateY(0);
 }
-.toast--success { border-color: rgba(100, 200, 120, 0.5); color: #7dd898; }
-.toast--error   { border-color: rgba(248, 112, 96, 0.5);  color: var(--vibrant-coral); }
+.toast--success { border-color: rgba(var(--mint-green-rgb), 0.5); color: var(--mint-green); }
+.toast--error   { border-color: rgba(var(--vibrant-coral-rgb), 0.5);  color: var(--vibrant-coral); }

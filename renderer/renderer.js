@@ -4,6 +4,7 @@ let holidayDates = new Set();  // dates marked as holidays
 let selectedDate = todayStr();
 let viewYear, viewMonth;       // currently displayed calendar month
 let editingId = null;          // id of update being edited
+let pickerYear = new Date().getFullYear(); // year shown in month picker
 let autoSaveTimer = null;      // debounce timer for autosave
 let savingPromise = null;      // tracks in-flight save to prevent race with manual save
 let knownPeople = [];          // people loaded from DB
@@ -19,10 +20,18 @@ let searchDebounceTimer = null;
 // ── DOM refs ───────────────────────────────────────────
 const calDays       = document.getElementById('cal-days');
 const calMonthLabel = document.getElementById('cal-month-label');
-const btnPrev       = document.getElementById('btn-prev');
-const btnNext       = document.getElementById('btn-next');
-const detailLabel   = document.getElementById('detail-date-label');
-const updatesList   = document.getElementById('updates-list');
+const btnPrev           = document.getElementById('btn-prev');
+const btnNext           = document.getElementById('btn-next');
+const calMonthPicker    = document.getElementById('cal-month-picker');
+const btnPickerToday    = document.getElementById('btn-picker-today');
+const btnPickerYearPrev = document.getElementById('btn-picker-year-prev');
+const btnPickerYearNext = document.getElementById('btn-picker-year-next');
+const calPickerYear     = document.getElementById('cal-picker-year');
+const calPickerMonths   = document.getElementById('cal-picker-months');
+const detailLabel     = document.getElementById('detail-date-label');
+const btnDetailPrev   = document.getElementById('btn-detail-prev');
+const btnDetailNext   = document.getElementById('btn-detail-next');
+const updatesList     = document.getElementById('updates-list');
 const detailHeaderRight = document.getElementById('detail-header-right');
 const headerActions   = document.getElementById('header-actions');
 const btnAddUpdate    = document.getElementById('btn-add-update');
@@ -240,6 +249,8 @@ async function selectDate(dateStr) {
   selectedDate = dateStr;
   detailLabel.textContent = formatDateLabel(dateStr);
   detailHeaderRight.style.display = '';
+  btnDetailPrev.style.display = '';
+  btnDetailNext.style.display = '';
   hideComposer();
   hideHolidayComposer();
   hideCopyRangeComposer();
@@ -951,6 +962,26 @@ searchReposBtn.addEventListener('click', (e) => {
 });
 
 // ── Events ─────────────────────────────────────────────
+btnDetailPrev.addEventListener('click', () => {
+  const d = new Date(selectedDate + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  const next = localDateStr(d);
+  if (d.getFullYear() !== viewYear || d.getMonth() !== viewMonth) {
+    renderCalendar(d.getFullYear(), d.getMonth());
+  }
+  selectDate(next);
+});
+
+btnDetailNext.addEventListener('click', () => {
+  const d = new Date(selectedDate + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  const next = localDateStr(d);
+  if (d.getFullYear() !== viewYear || d.getMonth() !== viewMonth) {
+    renderCalendar(d.getFullYear(), d.getMonth());
+  }
+  selectDate(next);
+});
+
 btnPrev.addEventListener('click', () => {
   const d = new Date(viewYear, viewMonth - 1, 1);
   renderCalendar(d.getFullYear(), d.getMonth());
@@ -959,6 +990,57 @@ btnPrev.addEventListener('click', () => {
 btnNext.addEventListener('click', () => {
   const d = new Date(viewYear, viewMonth + 1, 1);
   renderCalendar(d.getFullYear(), d.getMonth());
+});
+
+// ── Month/year picker ───────────────────────────────────
+function openMonthPicker() {
+  pickerYear = viewYear;
+  renderMonthPicker();
+  calMonthPicker.style.display = '';
+}
+
+function closeMonthPicker() {
+  calMonthPicker.style.display = 'none';
+}
+
+function renderMonthPicker() {
+  calPickerYear.textContent = pickerYear;
+  calPickerMonths.innerHTML = '';
+  MONTH_NAMES.forEach((name, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cal-picker-month-btn' + (i === viewMonth && pickerYear === viewYear ? ' active' : '');
+    btn.textContent = name.slice(0, 3);
+    btn.addEventListener('click', () => {
+      renderCalendar(pickerYear, i);
+      closeMonthPicker();
+    });
+    calPickerMonths.appendChild(btn);
+  });
+}
+
+calMonthLabel.addEventListener('click', (e) => {
+  e.stopPropagation();
+  calMonthPicker.style.display !== 'none' ? closeMonthPicker() : openMonthPicker();
+});
+
+btnPickerToday.addEventListener('click', () => {
+  const now = new Date();
+  renderCalendar(now.getFullYear(), now.getMonth());
+  selectDate(todayStr());
+  closeMonthPicker();
+});
+
+btnPickerYearPrev.addEventListener('click', (e) => {
+  e.stopPropagation();
+  pickerYear--;
+  renderMonthPicker();
+});
+
+btnPickerYearNext.addEventListener('click', (e) => {
+  e.stopPropagation();
+  pickerYear++;
+  renderMonthPicker();
 });
 
 btnAddUpdate.addEventListener('click', openComposerForAdd);
@@ -1011,6 +1093,7 @@ document.addEventListener('keydown', (e) => {
     settingsDropdown.style.display = 'none';
     searchPeopleDropdown.style.display = 'none';
     searchReposDropdown.style.display = 'none';
+    closeMonthPicker();
   }
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') saveComposer();
 });
@@ -1090,6 +1173,7 @@ document.addEventListener('click', (e) => {
     searchPeopleDropdown.style.display = 'none';
     searchReposDropdown.style.display = 'none';
   }
+  if (!e.target.closest('#cal-label-wrap')) closeMonthPicker();
 });
 
 btnExportJson.addEventListener('click', async () => {

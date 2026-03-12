@@ -46,7 +46,18 @@
   <div class="calendar-panel">
     <div class="cal-nav">
       <button id="btn-prev">&#8249;</button>
-      <span id="cal-month-label"></span>
+      <div id="cal-label-wrap" class="cal-label-wrap">
+        <span id="cal-month-label"></span>
+        <div id="cal-month-picker" class="cal-month-picker" style="display:none">
+          <button id="btn-picker-today" class="cal-picker-today" type="button">Today</button>
+          <div class="cal-picker-year-row">
+            <button id="btn-picker-year-prev" type="button">&#8249;</button>
+            <span id="cal-picker-year"></span>
+            <button id="btn-picker-year-next" type="button">&#8250;</button>
+          </div>
+          <div id="cal-picker-months" class="cal-picker-months"></div>
+        </div>
+      </div>
       <button id="btn-next">&#8250;</button>
     </div>
     <div id="cal-days" class="cal-scroll"></div>
@@ -76,7 +87,11 @@
 
     <div class="detail-header">
       <div class="detail-header-left">
-        <h2 id="detail-date-label">Select a day</h2>
+        <div class="detail-date-nav">
+          <button id="btn-detail-prev" class="detail-nav-btn" style="display:none" title="Previous day">&#8249;</button>
+          <h2 id="detail-date-label">Select a day</h2>
+          <button id="btn-detail-next" class="detail-nav-btn" style="display:none" title="Next day">&#8250;</button>
+        </div>
         <div id="holiday-badge" style="display:none">
           <span id="holiday-name-label"></span>
           <button id="btn-remove-holiday" class="holiday-badge-remove" title="Remove holiday">&#x2715;</button>
